@@ -49,25 +49,28 @@ Le chiamate SIP arrivano a Twilio su un SIP Domain il cui Voice URL va impostato
 `https://<tuo-dominio>/voice` (HTTP POST), come per un numero Twilio
 ([Twilio: Sending SIP to Twilio](https://www.twilio.com/docs/voice/api/sending-sip)).
 
-### Dashboard
+### Dashboard (Vocalba)
 
-`https://<tuo-dominio>/dashboard` mostra lo stato del voicebot. Si aggiorna da sola ogni 30 secondi.
+La dashboard è il prodotto che vede il cliente: si presenta come **"Vocalba · Nazareth Residence"**.
+Nome del prodotto e del cliente si impostano con `APP_NAME` e `CLIENT_NAME`, senza toccare il codice.
 
-- **Oggi:** chiamate, domande a Claude, tempo di risposta (medio e 95° percentile),
-  risposte di ripiego, chiamate per ora ed esito di ogni chiamata (conclusa con saluto,
-  silenzio, ripiego, riagganciata dal chiamante, limite di domande).
-- **Ultime chiamate gestite** ed **errori recenti** (tipo e messaggio tecnico).
-- **Registro Twilio:** ultime 50 chiamate con durata, stato e costo Twilio. È permanente,
-  mentre le metriche del bot si azzerano a ogni riavvio o deploy.
-- **Configurazione** in uso: modello, voce, timeout, orario reception, versione.
+- **Accesso:** `https://<tuo-dominio>/dashboard` apre una pagina di accesso con password
+  (`DASHBOARD_PASSWORD`). La sessione dura 30 giorni sul dispositivo; "Esci" la chiude.
+  Cambiando la password si esce da tutti i dispositivi. Dopo 10 tentativi sbagliati dallo stesso
+  indirizzo l'accesso si blocca per 15 minuti. Senza `DASHBOARD_PASSWORD` risponde 404.
+- **App sul telefono:** da Safari o Chrome "Aggiungi a schermata Home" installa la dashboard
+  con icona e nome propri.
+- **Ultime 24 ore** (finestra mobile, segue il turno di notte): la giornata raccontata in una
+  frase, chiamate gestite, preventivi dati con valore indicativo, richiamate da fare, tempo di
+  risposta, chiamate per ora.
+- **Cosa chiedono i clienti:** argomenti delle domande (prezzi, arrivo e parcheggio, animali…),
+  riconosciuti per parole chiave. Si conserva solo l'argomento, mai il testo.
+- **Ultimi 7 giorni:** chiamate per giorno dal registro Twilio, che non si azzera ai riavvii.
+- **Salute del servizio:** stato di assistente vocale, prezzi WuBook ed email di richiamata.
+- **Errori recenti, registro telefonico e impostazioni** in sezioni richiudibili.
 
-Privacy: la dashboard non mostra trascrizioni. Gli id delle chiamate sono troncati e dei
-numeri si vedono solo le ultime tre cifre.
-
-Accesso: si attiva impostando `DASHBOARD_PASSWORD`. Senza la variabile risponde 404.
-Il browser chiede utente e password: l'utente può essere qualsiasi, conta solo la
-password. Dopo 10 tentativi sbagliati dallo stesso indirizzo l'accesso si blocca per
-15 minuti.
+Privacy: nessuna trascrizione né registrazione; id delle chiamate troncati, dei numeri solo le
+ultime tre cifre. Le metriche del servizio sono in memoria e ripartono a ogni riavvio.
 
 ### Simulatore di chiamata
 
@@ -213,13 +216,16 @@ Per provare l'assistente di giorno senza toccare il codice imposta temporaneamen
 nazareth-voicebot/
 ├── package.json
 ├── server.js                  # entry point: collega centralino e provider
+├── src/marchio.js             # nome del prodotto e del cliente (APP_NAME, CLIENT_NAME)
 ├── knowledge/
 │   └── nazareth.md            # base di conoscenza (unica fonte per Claude)
 ├── scripts/
 │   └── simula-chiamata.js     # chiamata simulata da terminale
 ├── src/
 │   ├── dashboard/
-│   │   ├── index.js           # route /dashboard protette da password
+│   │   ├── index.js           # route /dashboard: accesso, sessione, app installabile
+│   │   ├── login.html         # pagina di accesso con il marchio
+│   │   ├── icona.svg          # icona dell'app
 │   │   ├── metriche.js        # metriche in memoria dagli eventi del centralino
 │   │   ├── registro-twilio.js # storico chiamate e costi da Twilio
 │   │   ├── pagina.html        # pagina della dashboard
@@ -229,6 +235,7 @@ nazareth-voicebot/
 │   │   ├── protocollo.js      # eventi e azioni neutre
 │   │   ├── messaggi.js        # testi fissi
 │   │   ├── numeri.js          # lettura dei numeri a gruppi di cifre
+│   │   ├── argomenti.js       # argomenti delle domande per le statistiche
 │   │   └── orario.js          # orario della reception
 │   ├── provider/
 │   │   ├── index.js           # registro dei provider (TELEPHONY_PROVIDER)
@@ -300,6 +307,9 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `WUBOOK_ENABLED`            | `false` disattiva prezzi e disponibilità (default attivi)      |
 | `WUBOOK_EP`                 | Id del motore di prenotazione (default `17104f2c`)             |
 | `WUBOOK_TIMEOUT_MS`         | Timeout delle richieste a WuBook (default 4000)                |
+| `APP_NAME`                  | Nome del prodotto nella dashboard (default `Vocalba`)          |
+| `CLIENT_NAME`               | Nome del cliente (default `Nazareth Residence`)                |
+| `SESSION_SECRET`            | Facoltativo: segreto aggiuntivo per le sessioni della dashboard |
 | `DASHBOARD_PASSWORD`        | Password della dashboard `/dashboard` (vuota = disattivata)     |
 | `TELEPHONY_PROVIDER`        | Adattatore del provider telefonico (default `twilio`)          |
 | `RECEPTION_MODE`            | `auto` (default), `chiusa` o `aperta`: solo per le prove       |

@@ -2,6 +2,7 @@
 // Riceve eventi neutri e restituisce azioni neutre (vedi ./protocollo.js).
 const { azioni } = require('./protocollo');
 const { leggiNumero, numeroProponibile, normalizzaNumero } = require('./numeri');
+const { classificaDomanda } = require('./argomenti');
 const { isReceptionChiusa: orarioReception } = require('./orario');
 const {
   INTRO,
@@ -155,6 +156,9 @@ function creaCentralino({
       log(chiamataId, 'limite_turni', { turni: maxTurni });
       return chiudi(chiamataId, MESSAGGIO_LIMITE_TURNI, 'limite_turni');
     }
+
+    // Per le statistiche si registra solo l'argomento, non il testo.
+    log(chiamataId, 'domanda', { argomenti: classificaDomanda(domanda) });
 
     const messages = conversazioni.storico(chiamataId);
     messages.push({ role: 'user', content: domanda });

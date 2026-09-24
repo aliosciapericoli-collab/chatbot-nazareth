@@ -129,7 +129,14 @@ function creaStrumentoDisponibilita({ wubook, now = () => Date.now(), log = () =
           istruzione: 'Nessuna camera disponibile sul sito per queste date e questo numero di persone. Suggerisci altre date o rimanda al sito o a WhatsApp.',
         };
       }
-      log(chiamataId, 'verifica_disponibilita', { esito: risultato.esito, ms: now() - inizio, cache: daCache, notti: dati.notti });
+      log(chiamataId, 'verifica_disponibilita', {
+        esito: risultato.esito,
+        ms: now() - inizio,
+        cache: daCache,
+        notti: dati.notti,
+        // Prezzo più basso proposto: serve alla dashboard per il valore dei preventivi.
+        prezzoMinimo: offerte.length ? offerte[0].prezzoTotale : null,
+      });
       return { contenuto: JSON.stringify(risultato), errore: false, esito: risultato.esito };
     } catch (error) {
       const esito = error instanceof WuBookFormatoError ? 'formato_cambiato' : 'non_raggiungibile';

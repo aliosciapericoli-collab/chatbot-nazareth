@@ -2,161 +2,237 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>Voicebot Nazareth</title>
+<meta name="theme-color" content="#0f1420">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="{{APP_NAME}}">
+<title>{{TITOLO}}</title>
+<link rel="icon" href="/dashboard/icona.svg" type="image/svg+xml">
+<link rel="manifest" href="/dashboard/manifest.webmanifest">
 <style>
   :root {
     color-scheme: light;
-    --surface-0: #f4f4f2;
-    --surface-1: #fcfcfb;
-    --border: #e2e1dc;
-    --grid: #ebeae6;
-    --text-primary: #0b0b0b;
-    --text-secondary: #52514e;
-    --text-muted: #6f6e69;
-    --series-1: #2a78d6;
+    --sfondo: #f5f3ef;
+    --carta: #ffffff;
+    --carta-2: #faf8f4;
+    --bordo: #e6e2da;
+    --griglia: #eeebe4;
+    --testo: #16181d;
+    --testo-2: #52545a;
+    --testo-3: #6f7178;
+    --accento: #c7661a;
+    --accento-tenue: rgba(199, 102, 26, 0.10);
+    --serie: #2a78d6;
     --good: #0ca30c;
     --warning: #fab219;
-    --serious: #ec835a;
     --critical: #d03b3b;
-    --neutral: #8a8984;
+    --neutro: #8a8984;
+    --ombra: 0 1px 2px rgba(20, 20, 20, 0.04), 0 8px 24px rgba(20, 20, 20, 0.05);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       color-scheme: dark;
-      --surface-0: #111110;
-      --surface-1: #1a1a19;
-      --border: #2e2e2b;
-      --grid: #262624;
-      --text-primary: #ffffff;
-      --text-secondary: #c3c2b7;
-      --text-muted: #9a998f;
-      --series-1: #3987e5;
-      --neutral: #8a8984;
+      --sfondo: #0b0f18;
+      --carta: #131927;
+      --carta-2: #171e2e;
+      --bordo: #242c3f;
+      --griglia: #1f2637;
+      --testo: #f3f4f7;
+      --testo-2: #b4bac7;
+      --testo-3: #8d94a4;
+      --accento: #f6a247;
+      --accento-tenue: rgba(246, 162, 71, 0.12);
+      --serie: #3987e5;
+      --ombra: none;
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --surface-0: #111110;
-    --surface-1: #1a1a19;
-    --border: #2e2e2b;
-    --grid: #262624;
-    --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted: #9a998f;
-    --series-1: #3987e5;
+    --sfondo: #0b0f18; --carta: #131927; --carta-2: #171e2e; --bordo: #242c3f; --griglia: #1f2637;
+    --testo: #f3f4f7; --testo-2: #b4bac7; --testo-3: #8d94a4; --accento: #f6a247;
+    --accento-tenue: rgba(246, 162, 71, 0.12); --serie: #3987e5; --ombra: none;
   }
 
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    background: var(--surface-0);
-    color: var(--text-primary);
-    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--sfondo);
+    color: var(--testo);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; }
-  header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
-  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
-  h2 { font-size: 15px; margin: 0 0 12px; color: var(--text-secondary); font-weight: 600; }
-  .meta { color: var(--text-muted); font-size: 13px; }
-  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-1); font-size: 13px; color: var(--text-secondary); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--neutral); }
+  main { max-width: 1120px; margin: 0 auto; padding: 16px 16px 48px; padding-top: max(16px, env(safe-area-inset-top)); }
 
-  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-  .grid { display: grid; gap: 12px; }
-  .tiles { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 12px; }
-  .two { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-bottom: 12px; }
-  @media (max-width: 760px) { .two { grid-template-columns: minmax(0, 1fr); } }
+  /* Barra superiore */
+  .barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 20px; }
+  .marchio { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .marchio img { width: 40px; height: 40px; border-radius: 11px; flex: none; }
+  .marchio b { display: block; font-size: 17px; letter-spacing: -0.01em; }
+  .marchio span { display: block; color: var(--testo-3); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .azioni { display: flex; align-items: center; gap: 8px; }
+  .stato { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--testo-2); background: var(--carta); border: 1px solid var(--bordo); border-radius: 999px; padding: 5px 12px; white-space: nowrap; }
+  .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--neutro); flex: none; }
+  .punto.ok { background: var(--good); box-shadow: 0 0 0 4px rgba(12, 163, 12, 0.15); }
+  .punto.problema { background: var(--critical); box-shadow: 0 0 0 4px rgba(208, 59, 59, 0.15); }
+  .esci { font: inherit; font-size: 13px; color: var(--testo-2); background: none; border: 1px solid var(--bordo); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
 
-  .tile .label { color: var(--text-secondary); font-size: 13px; }
-  .tile .value { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
-  .tile .sub { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+  /* Racconto della giornata */
+  .eroe {
+    border-radius: 20px; padding: 24px; margin-bottom: 12px; border: 1px solid var(--bordo);
+    background: radial-gradient(900px 300px at 100% 0%, var(--accento-tenue), transparent 60%), var(--carta);
+    box-shadow: var(--ombra);
+  }
+  .saluto { color: var(--testo-3); font-size: 14px; margin: 0 0 6px; }
+  .eroe h1 { font-size: clamp(22px, 3.2vw, 30px); line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 8px; font-weight: 700; }
+  .eroe h1 em { font-style: normal; color: var(--accento); }
+  .eroe p { margin: 0; color: var(--testo-2); font-size: 15px; }
 
-  .chart { position: relative; }
-  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-  .chart .axis { fill: var(--text-muted); font-size: 11px; }
-  .chart .gridline { stroke: var(--grid); stroke-width: 1; }
-  .chart .bar { fill: var(--series-1); }
-  .chart .hit { fill: transparent; cursor: default; }
-  .chart .hit:hover + .bar, .chart .bar.attiva { opacity: 0.8; }
-  .tooltip { position: absolute; pointer-events: none; background: var(--text-primary); color: var(--surface-1); font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -100%); display: none; }
+  .card { background: var(--carta); border: 1px solid var(--bordo); border-radius: 16px; padding: 18px; box-shadow: var(--ombra); min-width: 0; }
+  .griglia { display: grid; gap: 12px; margin-bottom: 12px; }
+  .kpi { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .due { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  @media (max-width: 900px) { .kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 720px) { .due { grid-template-columns: minmax(0, 1fr); } }
 
-  ul.esiti { list-style: none; margin: 0; padding: 0; }
-  ul.esiti li { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--grid); }
-  ul.esiti li:last-child { border-bottom: 0; }
-  .num { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .tile .etichetta { color: var(--testo-2); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .tile .valore { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin-top: 4px; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .tile .nota { color: var(--testo-3); font-size: 12.5px; margin-top: 4px; }
+  .tile .nota.allarme { color: var(--critical); font-weight: 600; }
 
-  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-primary); }
-  .badge .icona { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 700; background: var(--neutral); }
+  h2 { font-size: 15px; margin: 0; font-weight: 650; }
+  .intestazione { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .sotto { color: var(--testo-3); font-size: 12.5px; }
+
+  /* Argomenti: barre orizzontali con etichetta e valore diretti */
+  .argomenti { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .argomenti li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: 14px; }
+  .argomenti .barra-arg { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--griglia); overflow: hidden; }
+  .argomenti .barra-arg span { display: block; height: 100%; border-radius: 4px; background: var(--serie); }
+  .argomenti .num { font-weight: 650; font-variant-numeric: tabular-nums; }
+
+  /* Grafici a barre verticali */
+  .grafico { position: relative; }
+  .grafico svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .grafico .asse { fill: var(--testo-3); font-size: 11px; }
+  .grafico .linea { stroke: var(--griglia); stroke-width: 1; }
+  .grafico .barra { fill: var(--serie); }
+  .grafico .barra.attiva { opacity: 0.75; }
+  .grafico .zona { fill: transparent; }
+  .suggerimento { position: absolute; pointer-events: none; background: var(--testo); color: var(--carta); font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -100%); display: none; }
+
+  /* Ultime chiamate come elenco leggibile anche da telefono */
+  .chiamate { list-style: none; margin: 0; padding: 0; }
+  .chiamate li { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--griglia); align-items: start; }
+  .chiamate li:last-child { border-bottom: 0; }
+  .chiamate .ora { font-weight: 650; font-variant-numeric: tabular-nums; }
+  .chiamate .data { color: var(--testo-3); font-size: 12px; }
+  .chiamate .titolo { font-weight: 600; font-size: 14px; }
+  .chiamate .dettagli { color: var(--testo-3); font-size: 12.5px; }
+  .chip { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--carta-2); border: 1px solid var(--bordo); color: var(--testo-2); margin: 4px 4px 0 0; }
+  .chip.euro { border-color: transparent; background: var(--accento-tenue); color: var(--testo); font-weight: 600; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; }
+  .badge .icona { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 700; background: var(--neutro); flex: none; }
   .badge.good .icona { background: var(--good); }
-  .badge.warning .icona { background: var(--warning); color: #0b0b0b; }
-  .badge.serious .icona { background: var(--serious); color: #0b0b0b; }
+  .badge.warning .icona { background: var(--warning); color: #16181d; }
   .badge.critical .icona { background: var(--critical); }
-  .badge.info .icona { background: var(--series-1); }
+  .badge.info .icona { background: var(--serie); }
+  .colonna-destra { display: grid; justify-items: end; gap: 4px; }
+  @media (max-width: 560px) {
+    .chiamate li { grid-template-columns: 48px minmax(0, 1fr); }
+    .colonna-destra { grid-column: 2; justify-items: start; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  }
 
-  .table-wrap { overflow-x: auto; }
+  /* Salute del servizio */
+  .salute { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .salute li { display: flex; align-items: center; gap: 12px; }
+  .salute .nome { font-weight: 600; font-size: 14px; }
+  .salute .descrizione { color: var(--testo-3); font-size: 12.5px; }
+
+  details { background: var(--carta); border: 1px solid var(--bordo); border-radius: 16px; margin-bottom: 12px; box-shadow: var(--ombra); }
+  summary { cursor: pointer; padding: 16px 18px; font-weight: 650; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--testo-3); font-weight: 400; }
+  details[open] summary::after { content: "–"; }
+  .contenuto { padding: 0 18px 18px; }
+  .scorri { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: var(--text-muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  td { padding: 7px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th { text-align: left; color: var(--testo-3); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--bordo); white-space: nowrap; }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--griglia); white-space: nowrap; font-variant-numeric: tabular-nums; }
   tr:last-child td { border-bottom: 0; }
-  .vuoto { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
-  .sezione { margin-bottom: 12px; }
-  .riga-titolo { display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
-  .riga-titolo h2 { margin: 0; }
-  dl.config { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
-  dl.config dt { color: var(--text-muted); }
-  dl.config dd { margin: 0; overflow-wrap: anywhere; }
+  dl.impostazioni { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+  dl.impostazioni dt { color: var(--testo-3); }
+  dl.impostazioni dd { margin: 0; overflow-wrap: anywhere; }
+  .vuoto { color: var(--testo-3); font-size: 13.5px; padding: 6px 0; }
   .avviso { color: var(--critical); font-size: 13px; }
-  footer { color: var(--text-muted); font-size: 12px; margin-top: 16px; }
+  footer { color: var(--testo-3); font-size: 12px; margin-top: 20px; text-align: center; }
 </style>
 </head>
 <body>
 <main>
-  <header>
-    <div>
-      <h1>Voicebot Nazareth Residence</h1>
-      <div class="pills" id="pills"></div>
+  <header class="barra">
+    <div class="marchio">
+      <img src="/dashboard/icona.svg" alt="">
+      <div><b>{{APP_NAME}}</b><span>{{CLIENT_NAME}}</span></div>
     </div>
-    <div class="meta" id="aggiornato">Caricamento…</div>
+    <div class="azioni">
+      <span class="stato" id="stato-generale"><span class="punto"></span>Caricamento…</span>
+      <form method="post" action="/dashboard/logout"><button class="esci" type="submit">Esci</button></form>
+    </div>
   </header>
 
-  <section class="grid tiles" id="tiles" aria-label="Indicatori di oggi"></section>
-
-  <section class="grid two">
-    <div class="card">
-      <h2>Chiamate per ora, oggi</h2>
-      <div class="chart" id="grafico" role="img" aria-label="Chiamate per ora di oggi"></div>
-    </div>
-    <div class="card">
-      <h2>Esito delle chiamate, oggi</h2>
-      <ul class="esiti" id="esiti"></ul>
-    </div>
+  <section class="eroe" aria-live="polite">
+    <p class="saluto" id="saluto"></p>
+    <h1 id="titolo-giornata">Un attimo, raccolgo i dati…</h1>
+    <p id="sottotitolo-giornata"></p>
   </section>
 
-  <section class="card sezione">
-    <div class="riga-titolo"><h2>Ultime chiamate gestite</h2><span class="meta">dal riavvio del server, senza trascrizioni</span></div>
-    <div class="table-wrap" id="chiamate"></div>
-  </section>
+  <section class="griglia kpi" id="kpi" aria-label="I numeri delle ultime 24 ore"></section>
 
-  <section class="card sezione">
-    <div class="riga-titolo"><h2>Registro Twilio</h2><span class="meta" id="twilio-totali"></span></div>
-    <div class="table-wrap" id="twilio"></div>
-  </section>
-
-  <section class="grid two">
+  <section class="griglia due">
     <div class="card">
-      <h2>Errori recenti</h2>
-      <div class="table-wrap" id="errori"></div>
+      <div class="intestazione"><h2>Cosa chiedono i clienti</h2><span class="sotto">ultime 24 ore, per chiamata</span></div>
+      <div id="argomenti"></div>
     </div>
     <div class="card">
-      <h2>Configurazione</h2>
-      <dl class="config" id="config"></dl>
+      <div class="intestazione"><h2>Ultimi 7 giorni</h2><span class="sotto" id="sotto-settimana">chiamate ricevute</span></div>
+      <div class="grafico" id="grafico-settimana" role="img" aria-label="Chiamate negli ultimi sette giorni"></div>
     </div>
   </section>
 
-  <footer>Aggiornamento automatico ogni 30 secondi. Le metriche del bot si azzerano a ogni riavvio o deploy; il registro Twilio è permanente.</footer>
+  <section class="griglia due">
+    <div class="card">
+      <div class="intestazione"><h2>Ultime chiamate</h2><span class="sotto">senza trascrizioni</span></div>
+      <ul class="chiamate" id="chiamate"></ul>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="intestazione"><h2>Chiamate per ora, ultime 24 ore</h2></div>
+        <div class="grafico" id="grafico-ore" role="img" aria-label="Chiamate per ora nelle ultime 24 ore"></div>
+      </div>
+      <div class="card">
+        <div class="intestazione"><h2>Salute del servizio</h2></div>
+        <ul class="salute" id="salute"></ul>
+      </div>
+    </div>
+  </section>
+
+  <details id="blocco-errori">
+    <summary><span>Errori recenti <span class="sotto" id="conta-errori"></span></span></summary>
+    <div class="contenuto scorri" id="errori"></div>
+  </details>
+
+  <details>
+    <summary><span>Registro telefonico <span class="sotto" id="twilio-totali"></span></span></summary>
+    <div class="contenuto scorri" id="twilio"></div>
+  </details>
+
+  <details>
+    <summary>Impostazioni</summary>
+    <div class="contenuto"><dl class="impostazioni" id="impostazioni"></dl></div>
+  </details>
+
+  <footer id="piede">{{TITOLO}}</footer>
 </main>
 <script src="/dashboard/app.js"></script>
 </body>

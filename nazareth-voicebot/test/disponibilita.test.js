@@ -291,7 +291,7 @@ describe('prezzi al telefono (Twilio + Claude simulati)', () => {
       assert.equal(risultato.tool_use_id, 'toolu_1');
       assert.match(risultato.content, /"prezzo_totale_euro":166,"ultima_camera":true/);
       assert.equal(richieste[0].tools[0].name, 'verifica_disponibilita');
-      assert.match(richieste[0].system, /Oggi è giovedì 24 settembre 2026/);
+      assert.match(richieste[0].system, /Oggi è \S+ \d{1,2} \S+ \d{4} \(\d{4}-\d{2}-\d{2}\), ore \d{2}:\d{2} ora di Roma\./);
     });
   });
 
@@ -351,7 +351,7 @@ describe('prezzi al telefono (Twilio + Claude simulati)', () => {
       assert.doesNotMatch(body, /90 euro/);
       assert.ok(body.includes(MESSAGGIO_PREZZO_NON_VERIFICATO));
       assert.match(body, /<Gather /);
-      assert.equal(metriche.riepilogo().oggi.verifichePrezzi.prezziBloccati, 1);
+      assert.equal(metriche.riepilogo().ultime24h.verifichePrezzi.prezziBloccati, 1);
     } finally {
       server.close();
     }
@@ -380,7 +380,7 @@ describe('prezzi al telefono (Twilio + Claude simulati)', () => {
     for (const esito of ['disponibile', 'nessuna_disponibilita', 'non_raggiungibile', 'formato_cambiato', 'input_non_valido']) {
       m.registra('CA1', 'verifica_disponibilita', { esito });
     }
-    assert.deepEqual(m.riepilogo().oggi.verifichePrezzi, { riuscite: 2, nonRiuscite: 2, prezziBloccati: 0 });
+    assert.deepEqual(m.riepilogo().ultime24h.verifichePrezzi, { riuscite: 2, nonRiuscite: 2, prezziBloccati: 0 });
     assert.equal(m.riepilogo().errori.length, 2);
   });
 
