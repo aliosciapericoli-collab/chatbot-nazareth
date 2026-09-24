@@ -8,7 +8,7 @@ const { creaConversationStore } = require('../src/conversation-store');
 const { MESSAGGIO_RIPIEGO, MESSAGGIO_NESSUNA_RISPOSTA, INTRO } = require('../src/centralino/messaggi');
 const { creaProviderTwilio } = require('../src/provider/twilio');
 
-function creaTest({ chiusa = true, rispondi = async () => ({ testo: 'Risposta.', fine: false }) } = {}) {
+function creaTest({ chiusa = true, inoltroReception = true, rispondi = async () => ({ testo: 'Risposta.', fine: false }) } = {}) {
   const log = [];
   const conversazioni = creaConversationStore();
   const centralino = creaCentralino({
@@ -16,6 +16,7 @@ function creaTest({ chiusa = true, rispondi = async () => ({ testo: 'Risposta.',
     conversazioni,
     numeroReception: '+3907611564612',
     squilloSec: 20,
+    inoltroReception,
     limiteRispostaMs: 100,
     isReceptionChiusa: () => chiusa,
     log: (...args) => log.push(args),
@@ -30,6 +31,17 @@ describe('centralino', () => {
     assert.deepEqual(await gestisci({ tipo: 'chiamata_in_arrivo', chiamataId: 'C1' }), [
       { tipo: 'inoltra', numero: '+3907611564612', squilloSec: 20 },
     ]);
+  });
+
+  test('inoltro disattivato (reception già provata a monte): risponde subito l\'assistente', async () => {
+    const aperta = creaTest({ chiusa: false, inoltroReception: false });
+    const azioni = await aperta.gestisci({ tipo: 'chiamata_in_arrivo', chiamataId: 'C1' });
+    assert.equal(azioni[0].testo, INTRO.occupata);
+    assert.equal(azioni[1].tipo, 'ascolta');
+    assert.ok(!azioni.some((a) => a.tipo === 'inoltra'));
+
+    const chiusa = creaTest({ chiusa: true, inoltroReception: false });
+    assert.equal((await chiusa.gestisci({ tipo: 'chiamata_in_arrivo', chiamataId: 'C2' }))[0].testo, INTRO.chiusa);
   });
 
   test('reception chiusa: accoglienza e ascolto', async () => {

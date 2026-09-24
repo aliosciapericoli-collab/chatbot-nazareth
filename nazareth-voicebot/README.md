@@ -39,6 +39,16 @@ Un centralino in casa (per esempio Asterisk) richiederebbe invece un adattatore 
 eventi in tempo reale anziché su webhook: il centralino resta lo stesso, cambia solo
 l'adattatore.
 
+### Numero esistente con Asterisk (reception già provata a monte)
+
+Se le chiamate arrivano da un centralino che fa già squillare la reception (per esempio
+Asterisk collegato a Messagenet, che passa la chiamata a Twilio solo se nessuno risponde),
+imposta `RECEPTION_FORWARD=false`: il bot non inoltra di nuovo alla reception.
+Di giorno accoglie con "la reception non è disponibile", di notte con "la reception è chiusa".
+Le chiamate SIP arrivano a Twilio su un SIP Domain il cui Voice URL va impostato su
+`https://<tuo-dominio>/voice` (HTTP POST), come per un numero Twilio
+([Twilio: Sending SIP to Twilio](https://www.twilio.com/docs/voice/api/sending-sip)).
+
 ### Simulatore di chiamata
 
 `npm run simula` apre una chiamata finta da terminale che usa il centralino e Claude veri,
@@ -187,6 +197,7 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `TWILIO_VALIDATE_SIGNATURE` | `false` disattiva la verifica, solo in locale (default `true`) |
 | `TTS_VOICE`                 | Voce sintetica (default `Polly.Bianca-Neural`)                 |
 | `RECEPTION_PHONE_NUMBER`    | Numero della reception (default `+3907611564612`)              |
+| `RECEPTION_FORWARD`         | `false` se la reception squilla già a monte (default `true`)   |
 | `RECEPTION_DIAL_TIMEOUT`    | Secondi di squillo verso la reception (default 20)             |
 | `TELEPHONY_PROVIDER`        | Adattatore del provider telefonico (default `twilio`)          |
 | `RECEPTION_MODE`            | `auto` (default), `chiusa` o `aperta`: solo per le prove       |

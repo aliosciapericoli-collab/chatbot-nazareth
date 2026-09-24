@@ -39,6 +39,7 @@ function logPredefinito(chiamataId, evento, dettagli = {}) {
  * @param {ReturnType<import('../conversation-store').creaConversationStore>} opzioni.conversazioni
  * @param {string} opzioni.numeroReception  numero E.164 a cui inoltrare in orario di apertura
  * @param {number} opzioni.squilloSec       secondi di squillo verso la reception
+ * @param {boolean} opzioni.inoltroReception se false non inoltra mai: la reception è già stata provata a monte
  * @param {number} opzioni.maxTurni         domande massime per chiamata
  * @param {number} opzioni.maxTentativi     ascolti senza risposta prima di chiudere
  * @param {number} opzioni.limiteRispostaMs tempo massimo per la risposta dell'assistente
@@ -48,6 +49,8 @@ function creaCentralino({
   conversazioni,
   numeroReception,
   squilloSec = 20,
+  // false quando un centralino esterno (es. Asterisk) ha già fatto squillare la reception.
+  inoltroReception = true,
   maxTurni = 10,
   maxTentativi = 2,
   limiteRispostaMs = 9000,
@@ -71,6 +74,11 @@ function creaCentralino({
     if (isReceptionChiusa()) {
       log(chiamataId, 'assistente', { motivo: 'chiusa' });
       return accogli('chiusa');
+    }
+    if (!inoltroReception) {
+      // La chiamata arriva qui solo se la reception non ha risposto a monte.
+      log(chiamataId, 'assistente', { motivo: 'occupata', inoltro: 'a_monte' });
+      return accogli('occupata');
     }
     log(chiamataId, 'inoltro_reception');
     return [azioni.inoltra(numeroReception, squilloSec)];

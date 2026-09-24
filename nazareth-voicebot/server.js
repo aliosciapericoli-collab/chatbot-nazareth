@@ -33,6 +33,8 @@ function createApp({
     numeroReception: process.env.RECEPTION_PHONE_NUMBER || '+3907611564612',
     // Secondi di squillo verso la reception prima di passare all'assistente virtuale.
     squilloSec: Number.parseInt(process.env.RECEPTION_DIAL_TIMEOUT, 10) || 20,
+    // false se la reception viene già fatta squillare prima (es. Asterisk con Messagenet).
+    inoltroReception: process.env.RECEPTION_FORWARD !== 'false',
     // Domande massime per chiamata, per limitare durata e costi.
     maxTurni: Number.parseInt(process.env.CONVERSATION_MAX_TURNS, 10) || 10,
   });
