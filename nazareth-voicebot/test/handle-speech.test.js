@@ -149,6 +149,44 @@ describe('POST /handle-speech', () => {
     assert.match(r.body, /<Hangup\/>/);
   });
 
+  test('assistente che non risponde mai: il limite del server interviene comunque', async () => {
+    const assistenteBloccato = { rispondi: () => new Promise(() => {}) };
+    const app = createApp({ assistente: assistenteBloccato, conversazioni: creaConversationStore(), limiteRispostaMs: 150 });
+    const altroServer = await new Promise((resolve) => {
+      const s = app.listen(0, () => resolve(s));
+    });
+    try {
+      const url = `http://localhost:${altroServer.address().port}/handle-speech`;
+      const params = { CallSid: 'CA_bloccato', SpeechResult: 'domanda' };
+      const inizio = Date.now();
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'X-Twilio-Signature': twilio.getExpectedTwilioSignature(AUTH_TOKEN, url, params),
+        },
+        body: new URLSearchParams(params).toString(),
+      });
+      const body = await res.text();
+
+      assert.ok(Date.now() - inizio < 2000);
+      assert.equal(res.status, 200);
+      assert.ok(body.includes(MESSAGGIO_RIPIEGO));
+      assert.match(body, /<Hangup\/><\/Response>$/);
+    } finally {
+      altroServer.close();
+    }
+  });
+
+  test('messaggio di ripiego breve, con contatti e saluto finale', () => {
+    assert.ok(MESSAGGIO_RIPIEGO.split(/\s+/).length <= 35, 'massimo 35 parole');
+    assert.match(MESSAGGIO_RIPIEGO, /WhatsApp.*email.*arrivederci\.$/);
+  });
+
+  test('il prompt impone un saluto esplicito nel congedo', () => {
+    assert.match(SYSTEM_PROMPT, /congedalo in una frase che contenga sempre un saluto esplicito/);
+  });
+
   test('rifiuto del modello (refusal): messaggio di ripiego', async () => {
     clientCorrente = creaClientFinto(() => rispostaTesto('', 'refusal'));
     const r = await postTwilio('/handle-speech', { CallSid: 'CA_refusal', SpeechResult: 'domanda' });
@@ -172,7 +210,7 @@ describe('POST /handle-speech', () => {
     clientCorrente = creaClientFinto(() => rispostaTesto('non deve essere chiamato'));
 
     const r = await postTwilio('/handle-speech', { CallSid: 'CA_limite', SpeechResult: 'altra domanda' });
-    assert.match(r.body, /Per ulteriori informazioni .*<Hangup\/>/);
+    assert.match(r.body, /Per altre informazioni ci scriva su WhatsApp.*arrivederci\.<\/Say><Hangup\/>/);
     assert.equal(clientCorrente.richieste.length, 0);
   });
 

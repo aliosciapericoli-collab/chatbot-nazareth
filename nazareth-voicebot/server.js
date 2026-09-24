@@ -45,11 +45,31 @@ const RICHIESTA_DOPO_SILENZIO = {
 };
 
 const CONTATTI_PARLATI =
-  'Può scriverci su WhatsApp al tre quattro otto, nove zero cinque, quattro sette due tre, oppure all\'email info chiocciola nazarethresidence punto com.';
+  'ci scriva su WhatsApp al tre quattro otto, nove zero cinque, quattro sette due tre, o all\'email info chiocciola nazarethresidence punto com.';
 
-const MESSAGGIO_RIPIEGO = `Mi scusi, in questo momento non riesco a rispondere. ${CONTATTI_PARLATI} Grazie per aver chiamato, arrivederci.`;
+// Messaggi di chiusura: brevi, sempre con i contatti e un saluto finale.
+const MESSAGGIO_RIPIEGO = `Mi scusi, ora non riesco a rispondere: ${CONTATTI_PARLATI} Grazie, arrivederci.`;
 
-const MESSAGGIO_LIMITE_TURNI = `Per ulteriori informazioni ${CONTATTI_PARLATI} Grazie per aver chiamato, arrivederci.`;
+const MESSAGGIO_LIMITE_TURNI = `Per altre informazioni ${CONTATTI_PARLATI} Grazie, arrivederci.`;
+
+// Ultima difesa oltre al timeout interno di src/claude.js: la risposta a Twilio deve
+// partire comunque prima dei suoi 15 secondi, qualunque cosa faccia l'assistente.
+const LIMITE_RISPOSTA_MS = (Number.parseInt(process.env.CLAUDE_TIMEOUT_MS, 10) || 8000) + 1000;
+
+class RispostaInRitardoError extends Error {
+  constructor(ms) {
+    super(`Nessuna risposta dall'assistente entro ${ms} ms`);
+    this.name = 'RispostaInRitardoError';
+  }
+}
+
+function conLimiteDiTempo(promessa, ms) {
+  let timer;
+  const scadenza = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new RispostaInRitardoError(ms)), ms);
+  });
+  return Promise.race([promessa, scadenza]).finally(() => clearTimeout(timer));
+}
 
 // Esiti di <Dial> per cui la reception non ha risposto.
 const DIAL_NON_RIUSCITO = new Set(['busy', 'no-answer', 'failed']);
@@ -107,6 +127,7 @@ function rispondiConAssistente(response, motivo, tentativo) {
 function createApp({
   assistente = creaAssistente(),
   conversazioni = creaConversationStore(),
+  limiteRispostaMs = LIMITE_RISPOSTA_MS,
 } = {}) {
   const app = express();
 
@@ -199,7 +220,7 @@ function createApp({
 
     const inizio = Date.now();
     try {
-      const { testo, fine } = await assistente.rispondi(messages);
+      const { testo, fine } = await conLimiteDiTempo(assistente.rispondi(messages), limiteRispostaMs);
       log(callSid, 'risposta_claude', { ms: Date.now() - inizio, turno: messages.length, fine });
 
       say(response, testo);
@@ -212,7 +233,13 @@ function createApp({
         ascolta(response, 'continua', 1);
       }
     } catch (error) {
-      log(callSid, 'errore_claude', { ms: Date.now() - inizio, tipo: error.name, status: error.status });
+      // Il messaggio d'errore dell'API non contiene il parlato del chiamante.
+      log(callSid, 'errore_claude', {
+        ms: Date.now() - inizio,
+        tipo: error.name,
+        status: error.status,
+        messaggio: String(error.message).slice(0, 300),
+      });
       say(response, MESSAGGIO_RIPIEGO);
       response.hangup();
       conversazioni.elimina(callSid);
