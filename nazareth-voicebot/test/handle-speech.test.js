@@ -11,7 +11,7 @@ process.env.RECEPTION_MODE = 'chiusa';
 const twilio = require('twilio');
 const Anthropic = require('@anthropic-ai/sdk');
 const { createApp, isReceptionChiusa, MESSAGGIO_RIPIEGO } = require('../server');
-const { creaAssistente, SYSTEM_PROMPT, DEFAULT_MODEL } = require('../src/claude');
+const { creaAssistente, SYSTEM_PROMPT, SYSTEM_PROMPT_SENZA_RICHIAMATA, DEFAULT_MODEL } = require('../src/claude');
 const { creaConversationStore } = require('../src/conversation-store');
 const { knowledgeBase } = require('../src/knowledge-base');
 
@@ -83,8 +83,8 @@ describe('POST /handle-speech', () => {
 
     const [{ params, options }] = clientCorrente.richieste;
     assert.equal(params.model, DEFAULT_MODEL);
-    assert.ok(params.system.startsWith(SYSTEM_PROMPT));
-    assert.match(params.system, /<dati_chiamata>\nLa richiamata dalla reception in questo momento non è disponibile/);
+    // Senza SMTP il prompt non contiene la richiamata.
+    assert.equal(params.system, SYSTEM_PROMPT_SENZA_RICHIAMATA);
     assert.ok(params.max_tokens <= 300);
     assert.deepEqual(params.messages, [{ role: 'user', content: 'Avete il parcheggio?' }]);
     assert.equal(options.maxRetries, 0);

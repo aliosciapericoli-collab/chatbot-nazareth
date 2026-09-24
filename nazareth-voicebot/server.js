@@ -119,6 +119,10 @@ if (require.main === module) {
   }
   if (!process.env.SMTP_HOST) {
     console.warn('SMTP_HOST non impostato: il bot non offre la richiamata finché l\'email non è configurata.');
+  } else if (!process.env.CALLBACK_EMAIL_FROM && !process.env.SMTP_USER) {
+    console.warn('SMTP_HOST impostato ma manca il mittente (CALLBACK_EMAIL_FROM o SMTP_USER): la richiamata resta disattivata.');
+  } else {
+    console.log(`Richiamata attiva: email a ${process.env.CALLBACK_EMAIL_TO || 'info@nazarethresidence.com'} tramite ${process.env.SMTP_HOST}.`);
   }
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('ANTHROPIC_API_KEY non impostata: l\'assistente risponderà solo con il messaggio di ripiego.');

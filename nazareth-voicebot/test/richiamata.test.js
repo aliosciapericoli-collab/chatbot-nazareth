@@ -13,7 +13,7 @@ delete process.env.CALLBACK_EMAIL_TO;
 
 const twilio = require('twilio');
 const { createApp } = require('../server');
-const { creaAssistente, estraiRichiamata, SYSTEM_PROMPT } = require('../src/claude');
+const { creaAssistente, estraiRichiamata, SYSTEM_PROMPT, SYSTEM_PROMPT_SENZA_RICHIAMATA } = require('../src/claude');
 const { componiEmail } = require('../src/notifiche/email-richiamata');
 const { leggiNumero, numeroProponibile } = require('../src/centralino/numeri');
 
@@ -110,7 +110,7 @@ describe('richiamata', () => {
 
       // Il numero del chiamante arriva a Claude già scritto a parole.
       assert.match(richieste[3].system, /Numero da cui chiama il cliente, da leggere così: "tre tre tre, uno due tre, quattro cinque sei sette"/);
-      assert.doesNotMatch(richieste[3].system, /non offrirla/);
+      assert.ok(richieste[3].system.includes('Richiamata dalla reception:'));
       assert.ok(richieste[3].system.startsWith(SYSTEM_PROMPT));
 
       // Al chiamante arriva solo il testo parlato, poi l'ascolto continua.
@@ -199,8 +199,8 @@ describe('richiamata', () => {
     const evento = eventi().find((e) => e.evento === 'richiamata_email_non_inviata');
     assert.ok(evento);
     assert.equal(evento.motivo, 'smtp_non_configurato');
-    // Senza SMTP a Claude viene detto di non offrire la richiamata.
-    assert.match(richieste[0].system, /La richiamata dalla reception in questo momento non è disponibile: non offrirla/);
+    // Senza SMTP a Claude non arriva nessuna istruzione sulla richiamata.
+    assert.equal(richieste[0].system, SYSTEM_PROMPT_SENZA_RICHIAMATA);
     assert.equal(evento.chiamataId, 'CA_richiamata');
     assert.doesNotMatch(log.join('\n'), /Mario|3331234567|Gruppo/);
   });
@@ -284,6 +284,20 @@ describe('richiamata: funzioni di supporto', () => {
     assert.equal(numeroProponibile('anonymous'), false);
     assert.equal(numeroProponibile('sip:ospite@example.com'), false);
     assert.equal(numeroProponibile(null), false);
+  });
+
+  test('senza email configurata il prompt non nomina la richiamata e non raccoglie dati', () => {
+    assert.doesNotMatch(SYSTEM_PROMPT_SENZA_RICHIAMATA, /richiamata|lascio un messaggio|\[RICHIAMATA\]/i);
+    assert.match(SYSTEM_PROMPT_SENZA_RICHIAMATA, /Non chiedere né annotare nomi, numeri di telefono o altri dati personali e non offrire di far richiamare il cliente\./);
+    assert.match(SYSTEM_PROMPT_SENZA_RICHIAMATA, /nessun operatore è disponibile e rimanda a WhatsApp/);
+  });
+
+  test('la richiamata si può lasciare a qualsiasi ora', () => {
+    assert.match(SYSTEM_PROMPT, /La richiamata si può lasciare a qualsiasi ora, anche di notte\./);
+    // Le regole generali restano fuori dalla sezione sulla richiamata.
+    const [generali, richiamata] = SYSTEM_PROMPT.split('Richiamata dalla reception:');
+    assert.match(generali, /Dai del lei al chiamante/);
+    assert.doesNotMatch(richiamata.split('<base_di_conoscenza>')[0], /Dai del lei/);
   });
 
   test('il prompt descrive la richiamata e mantiene i limiti', () => {
