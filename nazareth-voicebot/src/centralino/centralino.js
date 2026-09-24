@@ -1,6 +1,7 @@
 // Centralino: tutta la logica della chiamata, indipendente dal provider telefonico.
 // Riceve eventi neutri e restituisce azioni neutre (vedi ./protocollo.js).
 const { azioni } = require('./protocollo');
+const { leggiNumero, numeroProponibile, normalizzaNumero } = require('./numeri');
 const { isReceptionChiusa: orarioReception } = require('./orario');
 const {
   INTRO,
@@ -43,6 +44,10 @@ function logPredefinito(chiamataId, evento, dettagli = {}) {
  * @param {number} opzioni.maxTurni         domande massime per chiamata
  * @param {number} opzioni.maxTentativi     ascolti senza risposta prima di chiudere
  * @param {number} opzioni.limiteRispostaMs tempo massimo per la risposta dell'assistente
+ * @param {(dati: object) => Promise<boolean>} [opzioni.notificaRichiamata] invio della richiesta
+ *   di richiamata alla reception; chiamata dopo la risposta al provider, non deve mai lanciare
+ * @param {boolean} [opzioni.richiamataDisponibile] se false il bot non offre la richiamata
+ * @param {string[]} [opzioni.numeriEsclusi] numeri della struttura da non proporre come recapito
  */
 function creaCentralino({
   assistente,
@@ -56,6 +61,10 @@ function creaCentralino({
   limiteRispostaMs = 9000,
   lingua = 'it-IT',
   isReceptionChiusa = () => orarioReception(),
+  notificaRichiamata = async () => false,
+  // La richiamata si offre solo se c'è un modo di consegnarla (email configurata).
+  richiamataDisponibile = false,
+  numeriEsclusi = [],
   log = logPredefinito,
 }) {
   const parla = (testo) => azioni.parla(testo, lingua);
@@ -104,7 +113,30 @@ function creaCentralino({
     return [parla(RICHIESTA_DOPO_SILENZIO[motivo]), ascolta(motivo, tentativo + 1)];
   }
 
-  async function parlato({ chiamataId, testo }) {
+  // Registra la richiamata confermata e invia l'email dopo la risposta al provider.
+  function gestisciRichiamata(chiamataId, richiamata, messages, numeroChiamante) {
+    if (conversazioni.segnato(chiamataId, 'richiamata')) {
+      log(chiamataId, 'richiamata_duplicata_ignorata');
+      return;
+    }
+    conversazioni.segna(chiamataId, 'richiamata');
+    log(chiamataId, 'richiamata_richiesta', { datiCompleti: Boolean(richiamata.nome && richiamata.numero && richiamata.motivo) });
+
+    const dati = {
+      chiamataId,
+      richiamata: { ...richiamata, numero: normalizzaNumero(richiamata.numero) ?? richiamata.numero },
+      numeroChiamante,
+      messages: [...messages],
+      ricevutaIl: Date.now(),
+    };
+    setImmediate(() => {
+      Promise.resolve()
+        .then(() => notificaRichiamata(dati))
+        .catch((error) => log(chiamataId, 'richiamata_email_errore', { tipo: error?.name }));
+    });
+  }
+
+  async function parlato({ chiamataId, testo, numeroChiamante }) {
     const domanda = (testo || '').trim();
     if (!domanda) {
       log(chiamataId, 'parlato_vuoto');
@@ -119,10 +151,24 @@ function creaCentralino({
     const messages = conversazioni.storico(chiamataId);
     messages.push({ role: 'user', content: domanda });
 
+    // Il numero del chiamante si propone come recapito solo se è affidabile.
+    const numeroAffidabile = numeroProponibile(numeroChiamante, numeriEsclusi) ? normalizzaNumero(numeroChiamante) : null;
+    const datiChiamata = {
+      numeroChiamanteLetto: numeroAffidabile ? leggiNumero(numeroAffidabile) : null,
+      richiamataDisponibile,
+    };
+
     const inizio = Date.now();
     try {
-      const { testo: risposta, fine } = await conLimiteDiTempo(assistente.rispondi(messages), limiteRispostaMs);
+      const { testo: risposta, fine, richiamata } = await conLimiteDiTempo(
+        assistente.rispondi(messages, datiChiamata),
+        limiteRispostaMs
+      );
       log(chiamataId, 'risposta_claude', { ms: Date.now() - inizio, turno: messages.length, fine });
+
+      if (richiamata) {
+        gestisciRichiamata(chiamataId, richiamata, [...messages, { role: 'assistant', content: risposta }], numeroAffidabile);
+      }
 
       if (fine) return chiudi(chiamataId, risposta, 'congedo');
 

@@ -24,7 +24,17 @@ function creaConversationStore({ ttlMs = DEFAULT_TTL_MS, now = () => Date.now() 
       return [...(conversazioni.get(callSid)?.messages ?? [])];
     },
     salva(callSid, messages) {
-      conversazioni.set(callSid, { messages, aggiornataIl: now() });
+      const segni = conversazioni.get(callSid)?.segni ?? new Set();
+      conversazioni.set(callSid, { messages, aggiornataIl: now(), segni });
+    },
+    // Segni per chiamata, per esempio "richiamata già inviata".
+    segna(callSid, chiave) {
+      const c = conversazioni.get(callSid) ?? { messages: [], aggiornataIl: now(), segni: new Set() };
+      c.segni.add(chiave);
+      conversazioni.set(callSid, c);
+    },
+    segnato(callSid, chiave) {
+      return conversazioni.get(callSid)?.segni.has(chiave) ?? false;
     },
     turniUtente(callSid) {
       return (conversazioni.get(callSid)?.messages ?? []).filter((m) => m.role === 'user').length;

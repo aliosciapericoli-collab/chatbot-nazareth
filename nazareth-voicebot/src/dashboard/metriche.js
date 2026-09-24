@@ -37,7 +37,7 @@ function creaMetriche({ maxChiamate = 500, maxErrori = 20, now = () => Date.now(
   function record(id) {
     let r = chiamate.get(id);
     if (!r) {
-      r = { id, inizio: now(), aggiornata: now(), ingresso: null, domande: 0, latenzeMs: [], causa: null };
+      r = { id, inizio: now(), aggiornata: now(), ingresso: null, domande: 0, latenzeMs: [], causa: null, richiamata: null };
       chiamate.set(id, r);
       // Tiene solo le chiamate più recenti.
       if (chiamate.size > maxChiamate) chiamate.delete(chiamate.keys().next().value);
@@ -68,6 +68,18 @@ function creaMetriche({ maxChiamate = 500, maxErrori = 20, now = () => Date.now(
         break;
       case 'chiusura':
         r.causa = dettagli.causa;
+        break;
+      case 'richiamata_richiesta':
+        r.richiamata = 'in_invio';
+        break;
+      case 'richiamata_email_inviata':
+        r.richiamata = 'email_inviata';
+        break;
+      case 'richiamata_email_non_inviata':
+      case 'richiamata_email_errore':
+        r.richiamata = 'email_non_inviata';
+        errori.push({ ts: now(), chiamata: mascheraId(chiamataId), evento, tipo: dettagli.motivo ?? dettagli.codice ?? dettagli.tipo ?? 'email', messaggio: 'Richiamata non inviata per email: controllare SMTP' });
+        if (errori.length > maxErrori) errori.shift();
         break;
       default:
         break;
@@ -101,6 +113,11 @@ function creaMetriche({ maxChiamate = 500, maxErrori = 20, now = () => Date.now(
         inoltrateReception: diOggi.filter((r) => r.ingresso === 'inoltro_reception').length,
         domande: diOggi.reduce((tot, r) => tot + r.domande, 0),
         latenzaMediaMs: media(latenzeOggi),
+        richiamate: {
+          richieste: diOggi.filter((r) => r.richiamata).length,
+          emailInviate: diOggi.filter((r) => r.richiamata === 'email_inviata').length,
+          emailNonInviate: diOggi.filter((r) => r.richiamata === 'email_non_inviata').length,
+        },
         latenzaP95Ms: percentile(latenzeOggi, 95),
         esiti: {
           congedo: contaEsito('congedo'),
@@ -122,6 +139,7 @@ function creaMetriche({ maxChiamate = 500, maxErrori = 20, now = () => Date.now(
           domande: r.domande,
           latenzaMediaMs: media(r.latenzeMs),
           esito: esito(r, adesso),
+          richiamata: r.richiamata,
         })),
       errori: [...errori].reverse().map((e) => ({ ...e, ts: new Date(e.ts).toISOString() })),
     };

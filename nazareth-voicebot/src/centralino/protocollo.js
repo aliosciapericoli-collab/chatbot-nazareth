@@ -10,7 +10,8 @@
  *
  * @typedef {{ tipo: 'chiamata_in_arrivo', chiamataId: string }} EventoChiamataInArrivo
  * @typedef {{ tipo: 'esito_inoltro', chiamataId: string, esito: EsitoInoltro }} EventoEsitoInoltro
- * @typedef {{ tipo: 'parlato', chiamataId: string, testo: string }} EventoParlato
+ * @typedef {{ tipo: 'parlato', chiamataId: string, testo: string, numeroChiamante?: string|null }} EventoParlato
+ *   numeroChiamante: numero da cui arriva la chiamata (E.164), se il provider lo fornisce
  * @typedef {{ tipo: 'silenzio', chiamataId: string, contesto: ContestoAscolto }} EventoSilenzio
  * @typedef {EventoChiamataInArrivo | EventoEsitoInoltro | EventoParlato | EventoSilenzio} Evento
  *

@@ -114,6 +114,7 @@ function creaProviderTwilio({ voce, validaFirma = true, publicBaseUrl, authToken
       tipo: 'parlato',
       chiamataId: req.body.CallSid,
       testo: req.body.SpeechResult || '',
+      numeroChiamante: req.body.From || null,
     })));
 
     return r;

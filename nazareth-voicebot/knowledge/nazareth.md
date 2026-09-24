@@ -87,8 +87,14 @@ Fonti:
 - Fermata dell'autobus a 150 metri dalla struttura.
 - Per i gruppi, navetta su prenotazione e a pagamento.
 
+## Richiamata dalla reception
+- L'assistente può lasciare un messaggio alla reception con nome, motivo e numero del chiamante.
+- La reception ricontatta in orario di apertura, dalle 7:00 alle 20:00; non c'è un orario preciso garantito.
+- I dati servono solo per ricontattare il cliente e vengono cancellati dopo la richiamata.
+
 ## Informazioni NON disponibili
 L'assistente NON conosce e NON deve inventare:
 - prezzi e tariffe delle camere;
 - disponibilità delle camere.
-Per queste deve rimandare sempre al sito nazarethresidence.com oppure al WhatsApp +39 348 9054723.
+Per queste deve rimandare sempre al sito nazarethresidence.com oppure al WhatsApp +39 348 9054723,
+e può offrire la richiamata dalla reception.

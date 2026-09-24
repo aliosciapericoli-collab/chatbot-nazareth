@@ -20,6 +20,17 @@
     annullata: { etichetta: 'Annullata', classe: 'neutral', icona: '–' },
     ripiego: { etichetta: 'Messaggio di ripiego (errore)', classe: 'critical', icona: '✕' },
   };
+  // Stati della richiamata, mostrati con lo stesso stile degli esiti.
+  Object.assign(ESITI, {
+    richiamata_in_invio: { etichetta: 'In invio', classe: 'info', icona: '•' },
+    richiamata_inviata: { etichetta: 'Email inviata', classe: 'good', icona: '✓' },
+    richiamata_non_inviata: { etichetta: 'Email NON inviata', classe: 'critical', icona: '✕' },
+  });
+  const RICHIAMATE = {
+    in_invio: 'richiamata_in_invio',
+    email_inviata: 'richiamata_inviata',
+    email_non_inviata: 'richiamata_non_inviata',
+  };
   const INGRESSI = {
     reception_chiusa: 'Reception chiusa',
     reception_non_disponibile: 'Reception non disponibile',
@@ -150,6 +161,9 @@
       tile('Tempo di risposta', secondi(o.latenzaMediaMs), o.latenzaP95Ms != null ? `95% entro ${secondi(o.latenzaP95Ms)}` : 'media di oggi'),
       tile('Risposte di ripiego', o.esiti.ripiego, o.esiti.ripiego ? 'errori o timeout: vedi sotto' : 'nessun errore oggi'),
     ];
+    const rc = o.richiamate;
+    tiles.push(tile('Richiamate richieste', rc.richieste,
+      rc.emailNonInviate ? `${rc.emailNonInviate} email NON inviate: vedi errori` : c.emailRichiamata ? `email a ${c.emailRichiamata}` : 'email non configurata'));
     if (c.inoltroReception) tiles.push(tile('Inoltrate alla reception', o.inoltrateReception));
     sostituisci('tiles', tiles);
 
@@ -160,8 +174,8 @@
       .map((k) => el('li', {}, [badge(k), el('span', { class: 'num', text: o.esiti[k] })])));
 
     sostituisci('chiamate', tabella(
-      ['Ora', 'Chiamata', 'Ingresso', 'Domande', 'Risposta media', 'Esito'],
-      m.ultimeChiamate.map((r) => [fmtData.format(new Date(r.inizio)), r.id, INGRESSI[r.ingresso] || '—', r.domande, secondi(r.latenzaMediaMs), badge(r.esito)]),
+      ['Ora', 'Chiamata', 'Ingresso', 'Domande', 'Risposta media', 'Esito', 'Richiamata'],
+      m.ultimeChiamate.map((r) => [fmtData.format(new Date(r.inizio)), r.id, INGRESSI[r.ingresso] || '—', r.domande, secondi(r.latenzaMediaMs), badge(r.esito), RICHIAMATE[r.richiamata] ? badge(RICHIAMATE[r.richiamata]) : '—']),
       'Nessuna chiamata dal riavvio del server.'
     ));
 
@@ -197,6 +211,7 @@
     const righe = [
       ['Provider', c.provider],
       ['Modello Claude', c.modello || '—'],
+      ['Email richiamate', c.emailRichiamata || 'non configurata'],
       ['Voce', c.voce],
       ['Timeout Claude', secondi(c.timeoutClaudeMs)],
       ['Domande massime', c.maxTurni],

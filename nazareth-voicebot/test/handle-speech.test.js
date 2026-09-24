@@ -83,7 +83,8 @@ describe('POST /handle-speech', () => {
 
     const [{ params, options }] = clientCorrente.richieste;
     assert.equal(params.model, DEFAULT_MODEL);
-    assert.equal(params.system, SYSTEM_PROMPT);
+    assert.ok(params.system.startsWith(SYSTEM_PROMPT));
+    assert.match(params.system, /<dati_chiamata>\nLa richiamata dalla reception in questo momento non è disponibile/);
     assert.ok(params.max_tokens <= 300);
     assert.deepEqual(params.messages, [{ role: 'user', content: 'Avete il parcheggio?' }]);
     assert.equal(options.maxRetries, 0);

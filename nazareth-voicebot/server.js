@@ -12,6 +12,7 @@ const { creaProvider } = require('./src/provider');
 const { creaMetriche } = require('./src/dashboard/metriche');
 const { creaRegistroTwilio } = require('./src/dashboard/registro-twilio');
 const { creaDashboard } = require('./src/dashboard');
+const { creaNotificatoreRichiamata } = require('./src/notifiche/email-richiamata');
 
 const PORT = process.env.PORT || 3000;
 
@@ -33,7 +34,26 @@ function createApp({
     authToken: process.env.TWILIO_AUTH_TOKEN,
   }),
   dashboardPassword = process.env.DASHBOARD_PASSWORD,
+  // Trasporto email sostituibile nei test; di default SMTP dalle variabili d'ambiente.
+  trasportoEmail,
 } = {}) {
+  // Ogni evento va nei log e nelle metriche della dashboard.
+  const log = (chiamataId, evento, dettagli) => {
+    logPredefinito(chiamataId, evento, dettagli);
+    metriche.registra(chiamataId, evento, dettagli);
+  };
+
+  const notificatore = creaNotificatoreRichiamata({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    to: process.env.CALLBACK_EMAIL_TO,
+    from: process.env.CALLBACK_EMAIL_FROM,
+    transport: trasportoEmail,
+    log,
+  });
+
   const inoltroReception = process.env.RECEPTION_FORWARD !== 'false';
   const maxTurni = Number.parseInt(process.env.CONVERSATION_MAX_TURNS, 10) || 10;
 
@@ -49,11 +69,11 @@ function createApp({
     inoltroReception,
     // Domande massime per chiamata, per limitare durata e costi.
     maxTurni,
-    // Ogni evento va nei log e nelle metriche della dashboard.
-    log: (chiamataId, evento, dettagli) => {
-      logPredefinito(chiamataId, evento, dettagli);
-      metriche.registra(chiamataId, evento, dettagli);
-    },
+    notificaRichiamata: notificatore.invia,
+    richiamataDisponibile: notificatore.configurato,
+    // Numeri della struttura: se il trasferimento li presenta come chiamante, non vanno proposti.
+    numeriEsclusi: [process.env.RECEPTION_PHONE_NUMBER || '+3907611564612', process.env.TWILIO_PHONE_NUMBER].filter(Boolean),
+    log,
   });
 
   const app = express();
@@ -79,6 +99,7 @@ function createApp({
       timeoutClaudeMs: Number.parseInt(process.env.CLAUDE_TIMEOUT_MS, 10) || 8000,
       maxTurni,
       voce: process.env.TTS_VOICE || 'Polly.Bianca-Neural',
+      emailRichiamata: notificatore.configurato ? process.env.CALLBACK_EMAIL_TO || 'info@nazarethresidence.com' : null,
       versione: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
     }),
   }));
@@ -95,6 +116,9 @@ if (require.main === module) {
   }
   if (RECEPTION_MODE !== 'auto') {
     console.warn(`RECEPTION_MODE=${RECEPTION_MODE}: l'orario della reception viene ignorato.`);
+  }
+  if (!process.env.SMTP_HOST) {
+    console.warn('SMTP_HOST non impostato: il bot non offre la richiamata finché l\'email non è configurata.');
   }
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('ANTHROPIC_API_KEY non impostata: l\'assistente risponderà solo con il messaggio di ripiego.');

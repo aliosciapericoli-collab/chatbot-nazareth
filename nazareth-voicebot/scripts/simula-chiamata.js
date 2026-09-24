@@ -3,6 +3,9 @@
 //
 //   npm run simula            reception chiusa: risponde l'assistente
 //   npm run simula -- --aperta reception aperta: prova l'inoltro
+//   npm run simula -- --da +393331234567   numero del chiamante (per la richiamata)
+//
+// Le email di richiamata usano le variabili SMTP del file .env, se presenti.
 //
 // Scrivi la tua frase e premi Invio; una riga vuota simula il silenzio.
 require('dotenv').config();
@@ -12,9 +15,13 @@ const { creaAssistente } = require('../src/claude');
 const { creaConversationStore } = require('../src/conversation-store');
 const { creaCentralino } = require('../src/centralino/centralino');
 const { ESITI_INOLTRO } = require('../src/centralino/protocollo');
+const { creaNotificatoreRichiamata } = require('../src/notifiche/email-richiamata');
 
 async function main() {
   const aperta = process.argv.includes('--aperta');
+  const indiceDa = process.argv.indexOf('--da');
+  const numeroChiamante = indiceDa === -1 ? null : process.argv[indiceDa + 1];
+  const logEmail = (id, evento, dettagli = {}) => console.log(`[${evento}${dettagli.motivo ? `: ${dettagli.motivo}` : ''}]`);
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   let finita = false;
   rl.on('close', () => {
@@ -26,6 +33,18 @@ async function main() {
     conversazioni: creaConversationStore(),
     numeroReception: process.env.RECEPTION_PHONE_NUMBER || '+3907611564612',
     isReceptionChiusa: () => !aperta,
+    numeriEsclusi: [process.env.RECEPTION_PHONE_NUMBER || '+3907611564612'],
+    // In simulazione la richiamata si prova anche senza SMTP: l'esito dell'invio compare a video.
+    richiamataDisponibile: true,
+    notificaRichiamata: creaNotificatoreRichiamata({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+      to: process.env.CALLBACK_EMAIL_TO,
+      from: process.env.CALLBACK_EMAIL_FROM,
+      log: logEmail,
+    }).invia,
     log: () => {},
   });
 
@@ -57,7 +76,7 @@ async function main() {
 
     const frase = (await rl.question('TU> ')).trim();
     evento = frase
-      ? { tipo: 'parlato', chiamataId, testo: frase }
+      ? { tipo: 'parlato', chiamataId, testo: frase, numeroChiamante }
       : { tipo: 'silenzio', chiamataId, contesto: ultima.contesto };
   }
 

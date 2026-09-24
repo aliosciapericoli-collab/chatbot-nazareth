@@ -87,6 +87,33 @@ Con l'adattatore Twilio, Twilio chiama `POST /voice` all'arrivo di ogni chiamata
 - Se il chiamante non parla, l'assistente riprova una volta (`POST /assistente`);
   al secondo silenzio saluta e chiude.
 
+### Richiamata dalla reception
+
+Quando il chiamante chiede qualcosa che il bot non può dare (prezzi, disponibilità,
+prenotazioni, gruppi, casi particolari) o chiede un operatore, il bot offre di lasciare un
+messaggio alla reception, che ricontatta in orario di apertura (7-20, senza orario preciso).
+
+1. Il bot chiede nome e motivo in breve.
+2. Propone come recapito il numero da cui si chiama (parametro `From` di Twilio, letto a
+   gruppi di cifre) oppure prende un numero dettato. Il numero non viene proposto se è
+   nascosto o se coincide con `RECEPTION_PHONE_NUMBER` o `TWILIO_PHONE_NUMBER` (per esempio
+   quando il trasferimento di chiamata presenta il numero della struttura).
+3. Ripete il riepilogo e chiede conferma.
+4. Dà l'informativa: "I suoi dati servono solo per ricontattarla e vengono cancellati dopo
+   la richiamata."
+
+Alla conferma Claude aggiunge un blocco `[RICHIAMATA]{...}[/RICHIAMATA]` che non viene letto
+al chiamante. Il server risponde subito a Twilio e poi invia un'email a `CALLBACK_EMAIL_TO`
+con oggetto `Richiamata richiesta - <nome>`: data e ora di Roma, nome, numero, motivo e
+conversazione. L'email parte alla conferma e non a fine telefonata, perché Twilio non avvisa
+il server quando il chiamante riaggancia. Una sola email per chiamata.
+
+Finché `SMTP_HOST` non è impostato il bot **non offre** la richiamata, per non promettere
+messaggi che nessuno riceverebbe. Se l'invio fallisce, il chiamante non se ne accorge:
+resta un log con il solo CallSid e un codice tecnico, e la dashboard mostra "Email NON inviata". Nulla viene
+salvato su disco. Il testo della conversazione passa solo dalla memoria del server all'email;
+dopo la richiamata l'email va cancellata dalla casella della reception.
+
 ### Endpoint (adattatore Twilio)
 
 ### Assistente virtuale (Claude)
@@ -170,16 +197,20 @@ nazareth-voicebot/
 │   │   ├── centralino.js      # logica della chiamata (indipendente dal provider)
 │   │   ├── protocollo.js      # eventi e azioni neutre
 │   │   ├── messaggi.js        # testi fissi
+│   │   ├── numeri.js          # lettura dei numeri a gruppi di cifre
 │   │   └── orario.js          # orario della reception
 │   ├── provider/
 │   │   ├── index.js           # registro dei provider (TELEPHONY_PROVIDER)
 │   │   └── twilio.js          # adattatore Twilio (webhook, firma, TwiML)
+│   ├── notifiche/
+│   │   └── email-richiamata.js # email di richiamata alla reception (SMTP)
 │   ├── claude.js              # integrazione API Anthropic e system prompt
 │   ├── conversation-store.js  # storico conversazioni per chiamata
 │   └── knowledge-base.js      # caricamento di knowledge/nazareth.md
 ├── test/
 │   ├── centralino.test.js     # centralino e adattatore, senza HTTP
 │   ├── dashboard.test.js      # accesso, metriche e registro Twilio della dashboard
+│   ├── richiamata.test.js     # richiamata con Claude e SMTP simulati
 │   └── handle-speech.test.js  # flusso HTTP Twilio con Claude simulato
 ├── .env.example
 └── README.md
@@ -226,6 +257,11 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `RECEPTION_PHONE_NUMBER`    | Numero della reception (default `+3907611564612`)              |
 | `RECEPTION_FORWARD`         | `false` se la reception squilla già a monte (default `true`)   |
 | `RECEPTION_DIAL_TIMEOUT`    | Secondi di squillo verso la reception (default 20)             |
+| `SMTP_HOST`                 | Server SMTP per le email di richiamata (vuoto = non inviate)   |
+| `SMTP_PORT`                 | Porta SMTP: 587 STARTTLS (default) o 465 TLS                   |
+| `SMTP_USER` / `SMTP_PASS`   | Credenziali SMTP                                               |
+| `CALLBACK_EMAIL_TO`         | Destinatario (default `info@nazarethresidence.com`)            |
+| `CALLBACK_EMAIL_FROM`       | Mittente (default `SMTP_USER`)                                 |
 | `DASHBOARD_PASSWORD`        | Password della dashboard `/dashboard` (vuota = disattivata)     |
 | `TELEPHONY_PROVIDER`        | Adattatore del provider telefonico (default `twilio`)          |
 | `RECEPTION_MODE`            | `auto` (default), `chiusa` o `aperta`: solo per le prove       |
