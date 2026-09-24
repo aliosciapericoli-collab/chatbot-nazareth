@@ -78,7 +78,7 @@ describe('POST /handle-speech', () => {
     assert.equal(r1.status, 200);
     assert.match(r1.body, /<Say voice="Polly.Bianca-Neural" language="it-IT">Sì, il parcheggio privato è gratuito ed è all'interno della struttura.<\/Say>/);
     assert.match(r1.body, /<Gather input="speech" language="it-IT" speechTimeout="auto" action="\/handle-speech" method="POST"\/>/);
-    assert.match(r1.body, /<Redirect method="POST">\/assistente\?motivo=continua&amp;tentativo=2<\/Redirect>/);
+    assert.match(r1.body, /<Redirect method="POST">\/assistente\?motivo=continua&amp;tentativo=1<\/Redirect>/);
     assert.doesNotMatch(r1.body, /Hangup/);
 
     const [{ params, options }] = clientCorrente.richieste;

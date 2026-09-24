@@ -1,10 +1,53 @@
 # nazareth-voicebot
 
-Voicebot telefonico basato su **Express**, **Twilio Voice** e **Claude** (Anthropic).
+Voicebot telefonico basato su **Express** e **Claude** (Anthropic), con un centralino
+indipendente dal provider telefonico. Il provider attuale è **Twilio Voice**.
+
+## Architettura: centralino e provider
+
+```
+ provider telefonico          adattatore                    centralino
+ (Twilio, domani altri) ──►  src/provider/twilio.js  ──►  src/centralino/  ──►  Claude
+   webhook, TwiML            eventi ⇄ azioni neutre        logica chiamata      src/claude.js
+```
+
+- **Centralino** (`src/centralino/`): orari, inoltro alla reception, accoglienza, silenzi,
+  conversazione con Claude, messaggi di ripiego. Riceve **eventi** neutri
+  (`chiamata_in_arrivo`, `esito_inoltro`, `parlato`, `silenzio`) e restituisce **azioni**
+  neutre (`parla`, `ascolta`, `inoltra`, `riaggancia`). Non conosce Twilio.
+  Il contratto è descritto in `src/centralino/protocollo.js`.
+- **Adattatore** (`src/provider/<nome>.js`): l'unica parte legata al provider. Verifica
+  l'autenticità delle richieste, le traduce in eventi e traduce le azioni nel formato
+  del provider (per Twilio: TwiML).
+- Il provider si sceglie con `TELEPHONY_PROVIDER` (default `twilio`).
+
+### Aggiungere o cambiare provider
+
+1. Crea `src/provider/<nome>.js` con la stessa interfaccia di `twilio.js`:
+   `{ nome, router(centralino) }`. Il router riceve i webhook del provider, chiama
+   `centralino.gestisci(evento)` e restituisce le azioni nel formato del provider.
+2. Mappa gli esiti dell'inoltro del provider sui cinque esiti neutri
+   (`risposto`, `occupato`, `nessuna_risposta`, `fallito`, `annullato`) e restituisci
+   intatto il `contesto` dell'azione `ascolta` nell'evento `silenzio`.
+3. Registralo in `src/provider/index.js`, aggiungi i test del rendering e imposta
+   `TELEPHONY_PROVIDER=<nome>`. Centralino, Claude e base di conoscenza non cambiano.
+
+Il modello a webhook con risposte a "verbi" è quello di Twilio e di altri provider: per
+esempio Vonage usa azioni JSON (NCCO) come `talk`, `input` e `connect`, con i risultati
+inviati a un webhook ([riferimento NCCO](https://developer.vonage.com/en/voice/voice-api/ncco-reference)).
+Un centralino in casa (per esempio Asterisk) richiederebbe invece un adattatore basato su
+eventi in tempo reale anziché su webhook: il centralino resta lo stesso, cambia solo
+l'adattatore.
+
+### Simulatore di chiamata
+
+`npm run simula` apre una chiamata finta da terminale che usa il centralino e Claude veri,
+senza nessun provider: utile per provare le risposte prima delle telefonate reali. Una riga
+vuota simula il silenzio; `npm run simula -- --aperta` prova l'inoltro alla reception.
 
 ## Funzionamento
 
-Twilio chiama `POST /voice` all'arrivo di ogni chiamata:
+Con l'adattatore Twilio, Twilio chiama `POST /voice` all'arrivo di ogni chiamata:
 
 - **07:01–19:59** (ora di Roma): la chiamata viene inoltrata alla reception con `<Dial>`.
   Se la reception è occupata, non risponde entro `RECEPTION_DIAL_TIMEOUT` secondi o il
@@ -13,6 +56,8 @@ Twilio chiama `POST /voice` all'arrivo di ogni chiamata:
   la richiesta con `<Gather input="speech">` e la invia a `POST /handle-speech`.
 - Se il chiamante non parla, l'assistente riprova una volta (`POST /assistente`);
   al secondo silenzio saluta e chiude.
+
+### Endpoint (adattatore Twilio)
 
 ### Assistente virtuale (Claude)
 
@@ -32,8 +77,6 @@ Twilio chiama `POST /voice` all'arrivo di ogni chiamata:
   chiamante sente un messaggio con WhatsApp ed email e la chiamata si chiude con cortesia.
 - **Log:** una riga JSON per evento con solo `CallSid`, esito e durata; il parlato e il numero
   del chiamante non vengono registrati.
-
-### Endpoint
 
 | Metodo | Percorso         | Descrizione                                         |
 |--------|------------------|-----------------------------------------------------|
@@ -81,16 +124,26 @@ Per provare l'assistente di giorno senza toccare il codice imposta temporaneamen
 ```
 nazareth-voicebot/
 ├── package.json
-├── server.js              # entry point Express
+├── server.js                  # entry point: collega centralino e provider
 ├── knowledge/
-│   └── nazareth.md        # base di conoscenza (unica fonte per Claude)
+│   └── nazareth.md            # base di conoscenza (unica fonte per Claude)
+├── scripts/
+│   └── simula-chiamata.js     # chiamata simulata da terminale
 ├── src/
-│   ├── claude.js          # integrazione API Anthropic e system prompt
-│   ├── conversation-store.js # storico conversazioni per CallSid
-│   ├── knowledge-base.js  # caricamento di knowledge/nazareth.md
-│   └── twilio-handler.js  # (vuoto, riservato)
+│   ├── centralino/
+│   │   ├── centralino.js      # logica della chiamata (indipendente dal provider)
+│   │   ├── protocollo.js      # eventi e azioni neutre
+│   │   ├── messaggi.js        # testi fissi
+│   │   └── orario.js          # orario della reception
+│   ├── provider/
+│   │   ├── index.js           # registro dei provider (TELEPHONY_PROVIDER)
+│   │   └── twilio.js          # adattatore Twilio (webhook, firma, TwiML)
+│   ├── claude.js              # integrazione API Anthropic e system prompt
+│   ├── conversation-store.js  # storico conversazioni per chiamata
+│   └── knowledge-base.js      # caricamento di knowledge/nazareth.md
 ├── test/
-│   └── handle-speech.test.js # test con Claude simulato
+│   ├── centralino.test.js     # centralino e adattatore, senza HTTP
+│   └── handle-speech.test.js  # flusso HTTP Twilio con Claude simulato
 ├── .env.example
 └── README.md
 ```
@@ -114,6 +167,7 @@ cp .env.example .env   # poi compila le variabili
 npm run dev   # sviluppo con nodemon (riavvio automatico)
 npm start     # produzione
 npm test      # test con Claude simulato (nessuna chiamata reale all'API)
+npm run simula  # chiamata simulata da terminale con Claude vero
 ```
 
 ## Variabili d'ambiente
@@ -134,5 +188,6 @@ npm test      # test con Claude simulato (nessuna chiamata reale all'API)
 | `TTS_VOICE`                 | Voce sintetica (default `Polly.Bianca-Neural`)                 |
 | `RECEPTION_PHONE_NUMBER`    | Numero della reception (default `+3907611564612`)              |
 | `RECEPTION_DIAL_TIMEOUT`    | Secondi di squillo verso la reception (default 20)             |
+| `TELEPHONY_PROVIDER`        | Adattatore del provider telefonico (default `twilio`)          |
 | `RECEPTION_MODE`            | `auto` (default), `chiusa` o `aperta`: solo per le prove       |
 | `TIMEZONE`                  | Fuso orario (default `Europe/Rome`)                            |
