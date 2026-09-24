@@ -6,10 +6,11 @@ const AUTH_TOKEN = 'token_di_test';
 process.env.TWILIO_AUTH_TOKEN = AUTH_TOKEN;
 process.env.TWILIO_VALIDATE_SIGNATURE = 'true';
 delete process.env.PUBLIC_BASE_URL;
+process.env.RECEPTION_MODE = 'chiusa';
 
 const twilio = require('twilio');
 const Anthropic = require('@anthropic-ai/sdk');
-const { createApp, MESSAGGIO_RIPIEGO } = require('../server');
+const { createApp, isReceptionChiusa, MESSAGGIO_RIPIEGO } = require('../server');
 const { creaAssistente, SYSTEM_PROMPT, DEFAULT_MODEL } = require('../src/claude');
 const { creaConversationStore } = require('../src/conversation-store');
 
@@ -181,6 +182,38 @@ describe('POST /handle-speech', () => {
       assert.equal((await postTwilio(path, params, { firma: 'errata' })).status, 403, path);
     }
     assert.equal(clientCorrente.richieste.length, 0);
+  });
+});
+
+describe('accoglienza e regole', () => {
+  test('/voice a reception chiusa: prima frase con dichiarazione di assistente virtuale e avviso di trascrizione', async () => {
+    const r = await postTwilio('/voice', { CallSid: 'CA_voice' });
+    assert.equal(r.status, 200);
+    assert.match(r.body, /<Say [^>]*>Benvenuto al Nazareth Residence, sono l'assistente virtuale\. Al momento la reception è chiusa\. Le sue parole vengono trascritte automaticamente/);
+    assert.match(r.body, /<Gather input="speech" language="it-IT"/);
+  });
+
+  test('/dial-status: reception non disponibile passa all\'assistente, chiamata conclusa chiude', async () => {
+    const occupata = await postTwilio('/dial-status', { CallSid: 'CA_dial', DialCallStatus: 'no-answer' });
+    assert.match(occupata.body, /sono l'assistente virtuale\. Al momento la reception non è disponibile/);
+    const conclusa = await postTwilio('/dial-status', { CallSid: 'CA_dial', DialCallStatus: 'completed' });
+    assert.match(conclusa.body, /<Response><Hangup\/><\/Response>/);
+  });
+
+  test('RECEPTION_MODE forza la modalità, auto segue l\'orario di Roma', () => {
+    const mezzogiorno = new Date('2026-07-15T10:00:00Z');
+    assert.equal(isReceptionChiusa(mezzogiorno, 'chiusa'), true);
+    assert.equal(isReceptionChiusa(new Date('2026-07-15T22:00:00Z'), 'aperta'), false);
+    assert.equal(isReceptionChiusa(mezzogiorno, 'auto'), false);
+    assert.equal(isReceptionChiusa(new Date('2026-07-15T18:00:00Z'), 'auto'), true);
+  });
+
+  test('il prompt contiene le regole su prenotazioni, self check-in, operatore e frasi incomprensibili', () => {
+    assert.match(SYSTEM_PROMPT, /Non prendere prenotazioni/);
+    assert.match(SYSTEM_PROMPT, /non dire mai che il chiamante può fare il check-in adesso/);
+    assert.match(SYSTEM_PROMPT, /entro le venti/);
+    assert.match(SYSTEM_PROMPT, /nessun operatore è disponibile/);
+    assert.match(SYSTEM_PROMPT, /chiedi gentilmente di ripetere/);
   });
 });
 

@@ -50,10 +50,30 @@ Tutti gli endpoint `POST` accettano solo richieste firmate da Twilio (header
 la verifica fallisce dietro a un proxy. Per provare in locale con curl imposta
 `TWILIO_VALIDATE_SIGNATURE=false` (mai in produzione).
 
+## Deploy su Render
+
+1. New → **Web Service**, collega il repository e scegli il branch.
+2. **Root Directory: `nazareth-voicebot`** (il progetto è in una sottocartella: senza
+   questa impostazione build e avvio falliscono).
+3. Runtime Node, build `npm install`, start `npm start`.
+4. Variabili d'ambiente: `ANTHROPIC_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+   `TWILIO_PHONE_NUMBER`, `RECEPTION_PHONE_NUMBER` e **`PUBLIC_BASE_URL`** con l'URL
+   pubblico del servizio (es. `https://nazareth-voicebot.onrender.com`), necessario per la
+   verifica della firma Twilio. Le altre hanno valori predefiniti.
+5. Non usare il piano gratuito in produzione: il servizio si spegne dopo 15 minuti senza
+   traffico e impiega circa un minuto a ripartire ([documentazione Render](https://render.com/docs/free)),
+   più dei 15 secondi che Twilio attende. La prima chiamata dopo una pausa fallirebbe.
+
 ## Configurazione Twilio
 
-Nella console Twilio imposta il webhook *A call comes in* del numero su
-`https://<tuo-dominio>/voice` (HTTP POST).
+1. Console Twilio → Phone Numbers → il numero → Voice Configuration.
+2. *A call comes in*: Webhook `https://<tuo-dominio>/voice`, metodo HTTP POST.
+
+### Prove
+
+Per provare l'assistente di giorno senza toccare il codice imposta temporaneamente
+`RECEPTION_MODE=chiusa` (oppure `aperta` per provare l'inoltro di notte) e riportalo a
+`auto` alla fine. All'avvio il server segnala nei log se la modalità è forzata.
 
 ## Struttura
 
@@ -113,4 +133,5 @@ npm test      # test con Claude simulato (nessuna chiamata reale all'API)
 | `TTS_VOICE`                 | Voce sintetica (default `Polly.Bianca-Neural`)                 |
 | `RECEPTION_PHONE_NUMBER`    | Numero della reception (default `+3907611564612`)              |
 | `RECEPTION_DIAL_TIMEOUT`    | Secondi di squillo verso la reception (default 20)             |
+| `RECEPTION_MODE`            | `auto` (default), `chiusa` o `aperta`: solo per le prove       |
 | `TIMEZONE`                  | Fuso orario (default `Europe/Rome`)                            |

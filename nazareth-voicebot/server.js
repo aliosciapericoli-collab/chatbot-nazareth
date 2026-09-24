@@ -22,14 +22,19 @@ const LANGUAGE = 'it-IT';
 const MAX_TENTATIVI = 2;
 // Domande massime per chiamata, per limitare durata e costi.
 const MAX_TURNI = Number.parseInt(process.env.CONVERSATION_MAX_TURNS, 10) || 10;
+// Solo per i test: 'chiusa' o 'aperta' forzano la modalità, 'auto' (default) segue l'orario.
+const RECEPTION_MODE = process.env.RECEPTION_MODE || 'auto';
 // Da disattivare solo in locale, per provare gli endpoint con curl.
 const VALIDATE_SIGNATURE = process.env.TWILIO_VALIDATE_SIGNATURE !== 'false';
 // URL pubblico con cui il webhook è configurato su Twilio (es. https://voicebot.example.com).
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL;
 
+// Prima frase: dichiarazione che risponde un assistente virtuale (art. 50 AI Act),
+// poi avviso della trascrizione automatica del parlato.
+const AVVISO_TRASCRIZIONE = 'Le sue parole vengono trascritte automaticamente per poterle rispondere.';
 const INTRO = {
-  chiusa: 'Benvenuto al Nazareth Residence. Al momento la reception è chiusa. Sono un assistente virtuale, come posso aiutarla?',
-  occupata: 'Benvenuto al Nazareth Residence. Al momento la reception non è disponibile. Sono un assistente virtuale, come posso aiutarla?',
+  chiusa: `Benvenuto al Nazareth Residence, sono l'assistente virtuale. Al momento la reception è chiusa. ${AVVISO_TRASCRIZIONE} Come posso aiutarla?`,
+  occupata: `Benvenuto al Nazareth Residence, sono l'assistente virtuale. Al momento la reception non è disponibile. ${AVVISO_TRASCRIZIONE} Come posso aiutarla?`,
   continua: 'Come posso aiutarla?',
 };
 
@@ -50,7 +55,9 @@ const MESSAGGIO_LIMITE_TURNI = `Per ulteriori informazioni ${CONTATTI_PARLATI} G
 const DIAL_NON_RIUSCITO = new Set(['busy', 'no-answer', 'failed']);
 
 // Reception chiusa dalle 20:00 alle 07:00, estremi inclusi (ora di Roma).
-function isReceptionChiusa(date = new Date()) {
+function isReceptionChiusa(date = new Date(), modalita = RECEPTION_MODE) {
+  if (modalita === 'chiusa') return true;
+  if (modalita === 'aperta') return false;
   const [ore, minuti] = formatInTimeZone(date, TIMEZONE, 'HH:mm').split(':').map(Number);
   const minutiDelGiorno = ore * 60 + minuti;
   return minutiDelGiorno >= 20 * 60 || minutiDelGiorno <= 7 * 60;
@@ -220,6 +227,9 @@ function createApp({
 if (require.main === module) {
   if (VALIDATE_SIGNATURE && !process.env.TWILIO_AUTH_TOKEN) {
     console.warn('TWILIO_AUTH_TOKEN non impostato: le richieste Twilio verranno rifiutate.');
+  }
+  if (RECEPTION_MODE !== 'auto') {
+    console.warn(`RECEPTION_MODE=${RECEPTION_MODE}: l'orario della reception viene ignorato.`);
   }
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('ANTHROPIC_API_KEY non impostata: l\'assistente risponderà solo con il messaggio di ripiego.');
