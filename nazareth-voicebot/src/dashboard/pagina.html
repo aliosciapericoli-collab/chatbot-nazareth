@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Voicebot Nazareth</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f4f4f2;
+    --surface-1: #fcfcfb;
+    --border: #e2e1dc;
+    --grid: #ebeae6;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #6f6e69;
+    --series-1: #2a78d6;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+    --neutral: #8a8984;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-0: #111110;
+      --surface-1: #1a1a19;
+      --border: #2e2e2b;
+      --grid: #262624;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #9a998f;
+      --series-1: #3987e5;
+      --neutral: #8a8984;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #111110;
+    --surface-1: #1a1a19;
+    --border: #2e2e2b;
+    --grid: #262624;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #9a998f;
+    --series-1: #3987e5;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; margin: 0 0 12px; color: var(--text-secondary); font-weight: 600; }
+  .meta { color: var(--text-muted); font-size: 13px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-1); font-size: 13px; color: var(--text-secondary); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--neutral); }
+
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .grid { display: grid; gap: 12px; }
+  .tiles { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 12px; }
+  .two { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-bottom: 12px; }
+  @media (max-width: 760px) { .two { grid-template-columns: minmax(0, 1fr); } }
+
+  .tile .label { color: var(--text-secondary); font-size: 13px; }
+  .tile .value { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tile .sub { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart .axis { fill: var(--text-muted); font-size: 11px; }
+  .chart .gridline { stroke: var(--grid); stroke-width: 1; }
+  .chart .bar { fill: var(--series-1); }
+  .chart .hit { fill: transparent; cursor: default; }
+  .chart .hit:hover + .bar, .chart .bar.attiva { opacity: 0.8; }
+  .tooltip { position: absolute; pointer-events: none; background: var(--text-primary); color: var(--surface-1); font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -100%); display: none; }
+
+  ul.esiti { list-style: none; margin: 0; padding: 0; }
+  ul.esiti li { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--grid); }
+  ul.esiti li:last-child { border-bottom: 0; }
+  .num { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-primary); }
+  .badge .icona { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 700; background: var(--neutral); }
+  .badge.good .icona { background: var(--good); }
+  .badge.warning .icona { background: var(--warning); color: #0b0b0b; }
+  .badge.serious .icona { background: var(--serious); color: #0b0b0b; }
+  .badge.critical .icona { background: var(--critical); }
+  .badge.info .icona { background: var(--series-1); }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--text-muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: 0; }
+  .vuoto { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+  .sezione { margin-bottom: 12px; }
+  .riga-titolo { display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .riga-titolo h2 { margin: 0; }
+  dl.config { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+  dl.config dt { color: var(--text-muted); }
+  dl.config dd { margin: 0; overflow-wrap: anywhere; }
+  .avviso { color: var(--critical); font-size: 13px; }
+  footer { color: var(--text-muted); font-size: 12px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Voicebot Nazareth Residence</h1>
+      <div class="pills" id="pills"></div>
+    </div>
+    <div class="meta" id="aggiornato">Caricamento…</div>
+  </header>
+
+  <section class="grid tiles" id="tiles" aria-label="Indicatori di oggi"></section>
+
+  <section class="grid two">
+    <div class="card">
+      <h2>Chiamate per ora, oggi</h2>
+      <div class="chart" id="grafico" role="img" aria-label="Chiamate per ora di oggi"></div>
+    </div>
+    <div class="card">
+      <h2>Esito delle chiamate, oggi</h2>
+      <ul class="esiti" id="esiti"></ul>
+    </div>
+  </section>
+
+  <section class="card sezione">
+    <div class="riga-titolo"><h2>Ultime chiamate gestite</h2><span class="meta">dal riavvio del server, senza trascrizioni</span></div>
+    <div class="table-wrap" id="chiamate"></div>
+  </section>
+
+  <section class="card sezione">
+    <div class="riga-titolo"><h2>Registro Twilio</h2><span class="meta" id="twilio-totali"></span></div>
+    <div class="table-wrap" id="twilio"></div>
+  </section>
+
+  <section class="grid two">
+    <div class="card">
+      <h2>Errori recenti</h2>
+      <div class="table-wrap" id="errori"></div>
+    </div>
+    <div class="card">
+      <h2>Configurazione</h2>
+      <dl class="config" id="config"></dl>
+    </div>
+  </section>
+
+  <footer>Aggiornamento automatico ogni 30 secondi. Le metriche del bot si azzerano a ogni riavvio o deploy; il registro Twilio è permanente.</footer>
+</main>
+<script src="/dashboard/app.js"></script>
+</body>
+</html>

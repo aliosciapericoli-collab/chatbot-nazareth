@@ -5,10 +5,13 @@ require('dotenv').config();
 const express = require('express');
 const { creaAssistente } = require('./src/claude');
 const { creaConversationStore } = require('./src/conversation-store');
-const { creaCentralino } = require('./src/centralino/centralino');
+const { creaCentralino, logPredefinito } = require('./src/centralino/centralino');
 const { isReceptionChiusa, RECEPTION_MODE } = require('./src/centralino/orario');
 const { MESSAGGIO_RIPIEGO } = require('./src/centralino/messaggi');
 const { creaProvider } = require('./src/provider');
+const { creaMetriche } = require('./src/dashboard/metriche');
+const { creaRegistroTwilio } = require('./src/dashboard/registro-twilio');
+const { creaDashboard } = require('./src/dashboard');
 
 const PORT = process.env.PORT || 3000;
 
@@ -24,7 +27,16 @@ function createApp({
   conversazioni = creaConversationStore(),
   limiteRispostaMs = LIMITE_RISPOSTA_MS,
   provider = creaProvider(),
+  metriche = creaMetriche(),
+  registroTwilio = creaRegistroTwilio({
+    accountSid: process.env.TWILIO_ACCOUNT_SID,
+    authToken: process.env.TWILIO_AUTH_TOKEN,
+  }),
+  dashboardPassword = process.env.DASHBOARD_PASSWORD,
 } = {}) {
+  const inoltroReception = process.env.RECEPTION_FORWARD !== 'false';
+  const maxTurni = Number.parseInt(process.env.CONVERSATION_MAX_TURNS, 10) || 10;
+
   const centralino = creaCentralino({
     assistente,
     conversazioni,
@@ -34,9 +46,14 @@ function createApp({
     // Secondi di squillo verso la reception prima di passare all'assistente virtuale.
     squilloSec: Number.parseInt(process.env.RECEPTION_DIAL_TIMEOUT, 10) || 20,
     // false se la reception viene già fatta squillare prima (es. Asterisk con Messagenet).
-    inoltroReception: process.env.RECEPTION_FORWARD !== 'false',
+    inoltroReception,
     // Domande massime per chiamata, per limitare durata e costi.
-    maxTurni: Number.parseInt(process.env.CONVERSATION_MAX_TURNS, 10) || 10,
+    maxTurni,
+    // Ogni evento va nei log e nelle metriche della dashboard.
+    log: (chiamataId, evento, dettagli) => {
+      logPredefinito(chiamataId, evento, dettagli);
+      metriche.registra(chiamataId, evento, dettagli);
+    },
   });
 
   const app = express();
@@ -48,6 +65,23 @@ function createApp({
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', provider: provider.nome });
   });
+
+  app.use(creaDashboard({
+    password: dashboardPassword,
+    metriche,
+    registroTwilio,
+    configurazione: () => ({
+      provider: provider.nome,
+      modello: assistente.model ?? null,
+      receptionAdesso: isReceptionChiusa() ? 'chiusa' : 'aperta',
+      receptionMode: RECEPTION_MODE,
+      inoltroReception,
+      timeoutClaudeMs: Number.parseInt(process.env.CLAUDE_TIMEOUT_MS, 10) || 8000,
+      maxTurni,
+      voce: process.env.TTS_VOICE || 'Polly.Bianca-Neural',
+      versione: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
+    }),
+  }));
 
   app.use(provider.router(centralino));
 

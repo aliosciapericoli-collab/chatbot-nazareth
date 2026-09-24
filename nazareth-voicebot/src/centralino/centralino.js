@@ -61,7 +61,8 @@ function creaCentralino({
   const parla = (testo) => azioni.parla(testo, lingua);
   const ascolta = (motivo, tentativo) => azioni.ascolta(lingua, { motivo, tentativo });
 
-  function chiudi(chiamataId, testo) {
+  function chiudi(chiamataId, testo, causa) {
+    log(chiamataId, 'chiusura', { causa });
     conversazioni.elimina(chiamataId);
     return [parla(testo), azioni.riaggancia()];
   }
@@ -90,6 +91,7 @@ function creaCentralino({
       return accogli('occupata');
     }
     // Conversazione con la reception conclusa o chiamata annullata.
+    log(chiamataId, 'chiusura', { causa: esito === 'risposto' ? 'reception' : 'annullata' });
     return [azioni.riaggancia()];
   }
 
@@ -98,7 +100,7 @@ function creaCentralino({
     const tentativo = Number.parseInt(contesto.tentativo, 10) || 1;
     log(chiamataId, 'silenzio', { motivo, tentativo });
 
-    if (tentativo >= maxTentativi) return chiudi(chiamataId, MESSAGGIO_NESSUNA_RISPOSTA);
+    if (tentativo >= maxTentativi) return chiudi(chiamataId, MESSAGGIO_NESSUNA_RISPOSTA, 'silenzio');
     return [parla(RICHIESTA_DOPO_SILENZIO[motivo]), ascolta(motivo, tentativo + 1)];
   }
 
@@ -111,7 +113,7 @@ function creaCentralino({
 
     if (conversazioni.turniUtente(chiamataId) >= maxTurni) {
       log(chiamataId, 'limite_turni', { turni: maxTurni });
-      return chiudi(chiamataId, MESSAGGIO_LIMITE_TURNI);
+      return chiudi(chiamataId, MESSAGGIO_LIMITE_TURNI, 'limite_turni');
     }
 
     const messages = conversazioni.storico(chiamataId);
@@ -122,7 +124,7 @@ function creaCentralino({
       const { testo: risposta, fine } = await conLimiteDiTempo(assistente.rispondi(messages), limiteRispostaMs);
       log(chiamataId, 'risposta_claude', { ms: Date.now() - inizio, turno: messages.length, fine });
 
-      if (fine) return chiudi(chiamataId, risposta);
+      if (fine) return chiudi(chiamataId, risposta, 'congedo');
 
       messages.push({ role: 'assistant', content: risposta });
       conversazioni.salva(chiamataId, messages);
@@ -135,7 +137,7 @@ function creaCentralino({
         status: error.status,
         messaggio: String(error.message).slice(0, 300),
       });
-      return chiudi(chiamataId, MESSAGGIO_RIPIEGO);
+      return chiudi(chiamataId, MESSAGGIO_RIPIEGO, 'ripiego');
     }
   }
 
@@ -160,10 +162,10 @@ function creaCentralino({
         return await gestore(evento);
       } catch (error) {
         log(evento?.chiamataId, 'errore_centralino', { tipo: error.name, messaggio: String(error.message).slice(0, 300) });
-        return chiudi(evento?.chiamataId, MESSAGGIO_RIPIEGO);
+        return chiudi(evento?.chiamataId, MESSAGGIO_RIPIEGO, 'ripiego');
       }
     },
   };
 }
 
-module.exports = { creaCentralino, RispostaInRitardoError };
+module.exports = { creaCentralino, RispostaInRitardoError, logPredefinito };

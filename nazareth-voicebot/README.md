@@ -49,6 +49,26 @@ Le chiamate SIP arrivano a Twilio su un SIP Domain il cui Voice URL va impostato
 `https://<tuo-dominio>/voice` (HTTP POST), come per un numero Twilio
 ([Twilio: Sending SIP to Twilio](https://www.twilio.com/docs/voice/api/sending-sip)).
 
+### Dashboard
+
+`https://<tuo-dominio>/dashboard` mostra lo stato del voicebot. Si aggiorna da sola ogni 30 secondi.
+
+- **Oggi:** chiamate, domande a Claude, tempo di risposta (medio e 95° percentile),
+  risposte di ripiego, chiamate per ora ed esito di ogni chiamata (conclusa con saluto,
+  silenzio, ripiego, riagganciata dal chiamante, limite di domande).
+- **Ultime chiamate gestite** ed **errori recenti** (tipo e messaggio tecnico).
+- **Registro Twilio:** ultime 50 chiamate con durata, stato e costo Twilio. È permanente,
+  mentre le metriche del bot si azzerano a ogni riavvio o deploy.
+- **Configurazione** in uso: modello, voce, timeout, orario reception, versione.
+
+Privacy: la dashboard non mostra trascrizioni. Gli id delle chiamate sono troncati e dei
+numeri si vedono solo le ultime tre cifre.
+
+Accesso: si attiva impostando `DASHBOARD_PASSWORD`. Senza la variabile risponde 404.
+Il browser chiede utente e password: l'utente può essere qualsiasi, conta solo la
+password. Dopo 10 tentativi sbagliati dallo stesso indirizzo l'accesso si blocca per
+15 minuti.
+
 ### Simulatore di chiamata
 
 `npm run simula` apre una chiamata finta da terminale che usa il centralino e Claude veri,
@@ -140,6 +160,12 @@ nazareth-voicebot/
 ├── scripts/
 │   └── simula-chiamata.js     # chiamata simulata da terminale
 ├── src/
+│   ├── dashboard/
+│   │   ├── index.js           # route /dashboard protette da password
+│   │   ├── metriche.js        # metriche in memoria dagli eventi del centralino
+│   │   ├── registro-twilio.js # storico chiamate e costi da Twilio
+│   │   ├── pagina.html        # pagina della dashboard
+│   │   └── app.js             # script della pagina
 │   ├── centralino/
 │   │   ├── centralino.js      # logica della chiamata (indipendente dal provider)
 │   │   ├── protocollo.js      # eventi e azioni neutre
@@ -153,6 +179,7 @@ nazareth-voicebot/
 │   └── knowledge-base.js      # caricamento di knowledge/nazareth.md
 ├── test/
 │   ├── centralino.test.js     # centralino e adattatore, senza HTTP
+│   ├── dashboard.test.js      # accesso, metriche e registro Twilio della dashboard
 │   └── handle-speech.test.js  # flusso HTTP Twilio con Claude simulato
 ├── .env.example
 └── README.md
@@ -199,6 +226,7 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `RECEPTION_PHONE_NUMBER`    | Numero della reception (default `+3907611564612`)              |
 | `RECEPTION_FORWARD`         | `false` se la reception squilla già a monte (default `true`)   |
 | `RECEPTION_DIAL_TIMEOUT`    | Secondi di squillo verso la reception (default 20)             |
+| `DASHBOARD_PASSWORD`        | Password della dashboard `/dashboard` (vuota = disattivata)     |
 | `TELEPHONY_PROVIDER`        | Adattatore del provider telefonico (default `twilio`)          |
 | `RECEPTION_MODE`            | `auto` (default), `chiusa` o `aperta`: solo per le prove       |
 | `TIMEZONE`                  | Fuso orario (default `Europe/Rome`)                            |
