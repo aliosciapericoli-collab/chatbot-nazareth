@@ -11,7 +11,8 @@ delete process.env.SMTP_HOST;
 
 const twilio = require('twilio');
 const { createApp } = require('../server');
-const { creaAssistente, SYSTEM_PROMPT, FRASE_PREZZI } = require('../src/claude');
+const { creaAssistente, SYSTEM_PROMPT, FRASE_PREZZI, MESSAGGIO_PREZZO_NON_VERIFICATO, importiInEuro } = require('../src/claude');
+const { creaMetriche } = require('../src/dashboard/metriche');
 const {
   creaClientWuBook,
   decodificaRisposta,
@@ -329,6 +330,58 @@ describe('prezzi al telefono (Twilio + Claude simulati)', () => {
       const r = await post('/prosegui?motivo=verifica', { CallSid: 'CA_nessuna' });
       assert.match(r.body, /Mi scusi, può ripetere la domanda\?<\/Say><Gather /);
     });
+  });
+
+  test('prezzo inventato senza verifica: bloccato dal server, il cliente viene rimandato al sito', async () => {
+    const richieste = [];
+    const client = { messages: { create: async (p) => { richieste.push(p); return { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Di solito una doppia costa circa 90 euro a notte.' }] }; } } };
+    const metriche = creaMetriche();
+    const assistente = creaAssistente({ client, timeoutMs: 1000 });
+    const app = createApp({ assistente, metriche, dashboardPassword: '' });
+    const server = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+    try {
+      const url = `http://localhost:${server.address().port}/handle-speech`;
+      const params = { CallSid: 'CA_inventa', SpeechResult: 'Quanto costa più o meno una doppia?' };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded', 'X-Twilio-Signature': twilio.getExpectedTwilioSignature(AUTH_TOKEN, url, params) },
+        body: new URLSearchParams(params).toString(),
+      });
+      const body = await res.text();
+      assert.doesNotMatch(body, /90 euro/);
+      assert.ok(body.includes(MESSAGGIO_PREZZO_NON_VERIFICATO));
+      assert.match(body, /<Gather /);
+      assert.equal(metriche.riepilogo().oggi.verifichePrezzi.prezziBloccati, 1);
+    } finally {
+      server.close();
+    }
+  });
+
+  test('WuBook giù e Claude che dà comunque una cifra: bloccata', async () => {
+    const { client } = claudeConStrumento('Non riesco a verificare, ma indicativamente sono 80 euro.');
+    await conServer({ client, fetch: fetchFinto({ attesa: true }) }, async (post) => {
+      await post('/handle-speech', { CallSid: 'CA_giu', SpeechResult: 'Prezzo dal primo al tre ottobre per due?' });
+      const r = await post('/prosegui?motivo=verifica', { CallSid: 'CA_giu' });
+      assert.doesNotMatch(r.body, /80 euro/);
+      assert.ok(r.body.includes(MESSAGGIO_PREZZO_NON_VERIFICATO));
+    });
+  });
+
+  test('gli importi della base di conoscenza restano ammessi senza verifica', async () => {
+    const client = { messages: { create: async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Fumare in camera comporta un addebito di 150 euro; la tassa di soggiorno è di 2,30 euro a persona a notte.' }] }) } };
+    const risposta = await creaAssistente({ client, timeoutMs: 1000 }).rispondi([{ role: 'user', content: 'Si può fumare?' }]);
+    assert.match(risposta.testo, /150 euro/);
+    assert.equal(risposta.prezzoBloccato, undefined);
+    assert.deepEqual(importiInEuro('Costa 166 euro, poi € 90 e 2,30 euro.'), [166, 90, 2.3]);
+  });
+
+  test('dashboard: verifiche riuscite e non riuscite contate a parte', () => {
+    const m = creaMetriche();
+    for (const esito of ['disponibile', 'nessuna_disponibilita', 'non_raggiungibile', 'formato_cambiato', 'input_non_valido']) {
+      m.registra('CA1', 'verifica_disponibilita', { esito });
+    }
+    assert.deepEqual(m.riepilogo().oggi.verifichePrezzi, { riuscite: 2, nonRiuscite: 2, prezziBloccati: 0 });
+    assert.equal(m.riepilogo().errori.length, 2);
   });
 
   test('il prompt limita prezzi e disponibilità allo strumento', () => {

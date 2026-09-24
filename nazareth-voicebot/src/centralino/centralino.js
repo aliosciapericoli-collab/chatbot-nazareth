@@ -198,7 +198,8 @@ function creaCentralino({
   }
 
   // Risposta finale di Claude: richiamata, congedo oppure nuovo ascolto.
-  function concludi(chiamataId, { testo: risposta, fine, richiamata }, messages, numeroAffidabile) {
+  function concludi(chiamataId, { testo: risposta, fine, richiamata, prezzoBloccato }, messages, numeroAffidabile) {
+    if (prezzoBloccato) log(chiamataId, 'prezzo_bloccato');
     if (richiamata) {
       gestisciRichiamata(chiamataId, richiamata, [...messages, { role: 'assistant', content: risposta }], numeroAffidabile);
     }

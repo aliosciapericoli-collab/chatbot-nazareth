@@ -149,6 +149,21 @@ function systemPer(dati = {}) {
   return base + contestoChiamata(dati);
 }
 
+// Importi in euro scritti in cifre, per esempio "166 euro", "2,30 euro", "€ 90".
+function importiInEuro(testo) {
+  const importi = [];
+  const re = /(?:€\s*(\d+(?:[.,]\d+)?))|(?:(\d+(?:[.,]\d+)?)\s*(?:euro|€))/gi;
+  for (const m of testo.matchAll(re)) importi.push(Number((m[1] ?? m[2]).replace(',', '.')));
+  return importi;
+}
+
+// Gli unici importi che il bot può dire senza una verifica: quelli della base di conoscenza
+// (tassa di soggiorno, addebito per il fumo, ...).
+const IMPORTI_BASE_DI_CONOSCENZA = new Set(importiInEuro(knowledgeBase));
+
+// Detto al posto di una risposta con un prezzo non verificato.
+const MESSAGGIO_PREZZO_NON_VERIFICATO = 'Per prezzi e disponibilità aggiornati posso fare una verifica se mi indica le date e il numero di persone, oppure può consultare il sito nazarethresidence punto com o scriverci su WhatsApp al tre quattro otto, nove zero cinque, quattro sette due tre.';
+
 // Garantisce le frasi obbligatorie quando al chiamante sono stati dati dei prezzi.
 function conFrasiObbligatorie(testo) {
   let risultato = testo;
@@ -221,6 +236,14 @@ function creaAssistente({
   }
 
   function interpreta(response, { prezziDati = false } = {}) {
+    // Blocco lato server: senza una verifica riuscita in questo turno nessun prezzo
+    // può arrivare al chiamante, anche se il modello ignorasse le istruzioni.
+    const bloccaSeServe = (risultato) => {
+      if (prezziDati) return risultato;
+      const nonVerificati = importiInEuro(risultato.testo).filter((i) => !IMPORTI_BASE_DI_CONOSCENZA.has(i));
+      if (nonVerificati.length === 0) return risultato;
+      return { testo: MESSAGGIO_PREZZO_NON_VERIFICATO, fine: false, richiamata: null, prezzoBloccato: true };
+    };
     const { parlato, richiamata } = estraiRichiamata(
       response.content
         .filter((block) => block.type === 'text')
@@ -233,7 +256,7 @@ function creaAssistente({
       throw new ClaudeRispostaNonValidaError(`testo vuoto (stop_reason ${response.stop_reason})`);
     }
     if (prezziDati) testo = conFrasiObbligatorie(testo);
-    return { testo, fine, richiamata };
+    return bloccaSeServe({ testo, fine, richiamata });
   }
 
   async function eseguiStrumento(blocco, datiChiamata) {
@@ -304,5 +327,7 @@ module.exports = {
   estraiRichiamata,
   contestoChiamata,
   conFrasiObbligatorie,
+  importiInEuro,
   FRASE_PREZZI,
+  MESSAGGIO_PREZZO_NON_VERIFICATO,
 };

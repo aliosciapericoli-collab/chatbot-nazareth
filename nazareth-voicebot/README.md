@@ -135,6 +135,10 @@ quattro camere non dà prezzi.
 - **Errori:** se WuBook non risponde o cambia formato, il bot dice che in questo momento non
   riesce a verificare e rimanda al sito, a WhatsApp o alla richiamata. La dashboard lo mostra
   tra gli errori.
+- **Blocco dei prezzi non verificati:** se in un turno senza verifica riuscita la risposta
+  contiene un importo in euro che non è nella base di conoscenza (tassa di soggiorno, addebito
+  per il fumo), il server la sostituisce con il rimando al sito e a WhatsApp e registra
+  `prezzo_bloccato`. La dashboard conta verifiche riuscite, non riuscite e prezzi bloccati.
 - **Storico:** nello storico della chiamata resta solo il testo detto al cliente, non i dati
   dello strumento: se il cliente chiede di nuovo, i prezzi vengono riverificati.
 - **Limiti:** i bambini sono contati come ospiti della camera; eventuali riduzioni vanno

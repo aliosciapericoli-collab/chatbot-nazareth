@@ -33,6 +33,7 @@ function creaMetriche({ maxChiamate = 500, maxErrori = 20, now = () => Date.now(
   const avvio = now();
   const chiamate = new Map(); // id → record, in ordine di arrivo
   const errori = [];
+  const verifiche = []; // { ts, esito } delle verifiche WuBook e dei prezzi bloccati
 
   function record(id) {
     let r = chiamate.get(id);
@@ -69,7 +70,14 @@ function creaMetriche({ maxChiamate = 500, maxErrori = 20, now = () => Date.now(
       case 'chiusura':
         r.causa = dettagli.causa;
         break;
+      case 'prezzo_bloccato':
+        verifiche.push({ ts: now(), esito: 'prezzo_bloccato' });
+        errori.push({ ts: now(), chiamata: mascheraId(chiamataId), evento, tipo: 'prezzo_bloccato', messaggio: 'Prezzo senza verifica bloccato: il cliente è stato rimandato al sito' });
+        if (errori.length > maxErrori) errori.shift();
+        break;
       case 'verifica_disponibilita':
+        verifiche.push({ ts: now(), esito: dettagli.esito });
+        if (verifiche.length > 2000) verifiche.shift();
         if (dettagli.esito === 'non_raggiungibile' || dettagli.esito === 'formato_cambiato') {
           errori.push({ ts: now(), chiamata: mascheraId(chiamataId), evento, tipo: dettagli.esito, messaggio: dettagli.messaggio || 'Verifica WuBook non riuscita' });
           if (errori.length > maxErrori) errori.shift();
@@ -119,6 +127,15 @@ function creaMetriche({ maxChiamate = 500, maxErrori = 20, now = () => Date.now(
         inoltrateReception: diOggi.filter((r) => r.ingresso === 'inoltro_reception').length,
         domande: diOggi.reduce((tot, r) => tot + r.domande, 0),
         latenzaMediaMs: media(latenzeOggi),
+        verifichePrezzi: (() => {
+          const diOggiV = verifiche.filter((v) => giorno(v.ts) === oggi);
+          const conta = (...esiti) => diOggiV.filter((v) => esiti.includes(v.esito)).length;
+          return {
+            riuscite: conta('disponibile', 'nessuna_disponibilita', 'troppe_persone_per_una_camera'),
+            nonRiuscite: conta('non_raggiungibile', 'formato_cambiato'),
+            prezziBloccati: conta('prezzo_bloccato'),
+          };
+        })(),
         richiamate: {
           richieste: diOggi.filter((r) => r.richiamata).length,
           emailInviate: diOggi.filter((r) => r.richiamata === 'email_inviata').length,

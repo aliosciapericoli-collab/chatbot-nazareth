@@ -161,6 +161,13 @@
       tile('Tempo di risposta', secondi(o.latenzaMediaMs), o.latenzaP95Ms != null ? `95% entro ${secondi(o.latenzaP95Ms)}` : 'media di oggi'),
       tile('Risposte di ripiego', o.esiti.ripiego, o.esiti.ripiego ? 'errori o timeout: vedi sotto' : 'nessun errore oggi'),
     ];
+    const vp = o.verifichePrezzi;
+    if (c.disponibilitaWuBook) {
+      const note = [];
+      if (vp.nonRiuscite) note.push(`${vp.nonRiuscite} NON riuscite (WuBook)`);
+      if (vp.prezziBloccati) note.push(`${vp.prezziBloccati} prezzi bloccati`);
+      tiles.push(tile('Verifiche prezzi', vp.riuscite + vp.nonRiuscite, note.length ? note.join(' · ') : 'tutte riuscite'));
+    }
     const rc = o.richiamate;
     tiles.push(tile('Richiamate richieste', rc.richieste,
       rc.emailNonInviate ? `${rc.emailNonInviate} email NON inviate: vedi errori` : c.emailRichiamata ? `email a ${c.emailRichiamata}` : 'email non configurata'));
