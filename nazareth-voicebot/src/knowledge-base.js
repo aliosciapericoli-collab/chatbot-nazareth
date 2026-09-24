@@ -1,4 +1,10 @@
-// Base di conoscenza usata dal voicebot (informazioni, orari, FAQ).
-// TODO: definire i contenuti e le funzioni di consultazione (fuso orario via date-fns-tz).
+// Base di conoscenza del voicebot: unica fonte di informazioni per Claude.
+const fs = require('node:fs');
+const path = require('node:path');
 
-module.exports = {};
+const KNOWLEDGE_FILE = path.join(__dirname, '..', 'knowledge', 'nazareth.md');
+
+// Letta una sola volta all'avvio: se il file manca il server non parte.
+const knowledgeBase = fs.readFileSync(KNOWLEDGE_FILE, 'utf8');
+
+module.exports = { knowledgeBase, KNOWLEDGE_FILE };
