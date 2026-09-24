@@ -84,7 +84,9 @@ describe('POST /handle-speech', () => {
     const [{ params, options }] = clientCorrente.richieste;
     assert.equal(params.model, DEFAULT_MODEL);
     // Senza SMTP il prompt non contiene la richiamata.
-    assert.equal(params.system, SYSTEM_PROMPT_SENZA_RICHIAMATA);
+    assert.ok(params.system.startsWith(SYSTEM_PROMPT_SENZA_RICHIAMATA));
+    assert.match(params.system, /<dati_chiamata>\nOggi è \S+ \d+ \S+ \d{4} \(\d{4}-\d{2}-\d{2}\)/);
+    assert.doesNotMatch(params.system.split("<dati_chiamata>")[1], /Numero da cui chiama/);
     assert.ok(params.max_tokens <= 300);
     assert.deepEqual(params.messages, [{ role: 'user', content: 'Avete il parcheggio?' }]);
     assert.equal(options.maxRetries, 0);

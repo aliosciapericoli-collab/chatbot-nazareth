@@ -16,6 +16,8 @@ const { creaConversationStore } = require('../src/conversation-store');
 const { creaCentralino } = require('../src/centralino/centralino');
 const { ESITI_INOLTRO } = require('../src/centralino/protocollo');
 const { creaNotificatoreRichiamata } = require('../src/notifiche/email-richiamata');
+const { creaClientWuBook } = require('../src/disponibilita/wubook');
+const { creaStrumentoDisponibilita } = require('../src/disponibilita/strumento');
 
 async function main() {
   const aperta = process.argv.includes('--aperta');
@@ -29,7 +31,9 @@ async function main() {
     process.exit(0);
   });
   const centralino = creaCentralino({
-    assistente: creaAssistente(),
+    assistente: creaAssistente({
+      strumenti: [creaStrumentoDisponibilita({ wubook: creaClientWuBook(), log: (id, e, d) => console.log(`[${e}: ${d.esito}]`) })],
+    }),
     conversazioni: creaConversationStore(),
     numeroReception: process.env.RECEPTION_PHONE_NUMBER || '+3907611564612',
     isReceptionChiusa: () => !aperta,
@@ -63,6 +67,10 @@ async function main() {
       console.log('\n[chiamata chiusa]');
       finita = true;
       break;
+    }
+    if (ultima.tipo === 'prosegui') {
+      evento = { tipo: 'prosegui', chiamataId, contesto: ultima.contesto };
+      continue;
     }
     if (ultima.tipo === 'inoltra') {
       console.log(`[inoltro a ${ultima.numero}, squillo ${ultima.squilloSec} s]`);

@@ -212,6 +212,7 @@
       ['Provider', c.provider],
       ['Modello Claude', c.modello || '—'],
       ['Email richiamate', c.emailRichiamata || 'non configurata'],
+      ['Prezzi WuBook', c.disponibilitaWuBook ? 'attivi' : 'disattivati'],
       ['Voce', c.voce],
       ['Timeout Claude', secondi(c.timeoutClaudeMs)],
       ['Domande massime', c.maxTurni],

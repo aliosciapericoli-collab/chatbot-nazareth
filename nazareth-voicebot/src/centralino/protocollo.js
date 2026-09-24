@@ -13,7 +13,8 @@
  * @typedef {{ tipo: 'parlato', chiamataId: string, testo: string, numeroChiamante?: string|null }} EventoParlato
  *   numeroChiamante: numero da cui arriva la chiamata (E.164), se il provider lo fornisce
  * @typedef {{ tipo: 'silenzio', chiamataId: string, contesto: ContestoAscolto }} EventoSilenzio
- * @typedef {EventoChiamataInArrivo | EventoEsitoInoltro | EventoParlato | EventoSilenzio} Evento
+ * @typedef {{ tipo: 'prosegui', chiamataId: string, contesto: { motivo: string } }} EventoProsegui
+ * @typedef {EventoChiamataInArrivo | EventoEsitoInoltro | EventoParlato | EventoSilenzio | EventoProsegui} Evento
  *
  * @typedef {'risposto' | 'occupato' | 'nessuna_risposta' | 'fallito' | 'annullato'} EsitoInoltro
  *
@@ -31,24 +32,29 @@
  *   Deve essere l'ultima azione della lista.
  * - inoltra: trasferisce la chiamata a `numero` (E.164) per `squilloSec` secondi;
  *   alla fine l'adattatore invia un evento `esito_inoltro`. Ultima azione della lista.
+ * - prosegui: l'adattatore invia subito un evento `prosegui` con lo stesso `contesto`,
+ *   dopo aver eseguito le azioni precedenti (serve a spezzare un'elaborazione lunga in due
+ *   richieste del provider). Ultima azione della lista.
  * - riaggancia: chiude la chiamata. Ultima azione della lista.
  *
  * @typedef {{ tipo: 'parla', testo: string, lingua: string }} AzioneParla
  * @typedef {{ tipo: 'ascolta', lingua: string, contesto: ContestoAscolto }} AzioneAscolta
  * @typedef {{ tipo: 'inoltra', numero: string, squilloSec: number }} AzioneInoltra
  * @typedef {{ tipo: 'riaggancia' }} AzioneRiaggancia
- * @typedef {AzioneParla | AzioneAscolta | AzioneInoltra | AzioneRiaggancia} Azione
+ * @typedef {{ tipo: 'prosegui', contesto: { motivo: string } }} AzioneProsegui
+ * @typedef {AzioneParla | AzioneAscolta | AzioneInoltra | AzioneRiaggancia | AzioneProsegui} Azione
  */
 
-const TIPI_EVENTO = ['chiamata_in_arrivo', 'esito_inoltro', 'parlato', 'silenzio'];
+const TIPI_EVENTO = ['chiamata_in_arrivo', 'esito_inoltro', 'parlato', 'silenzio', 'prosegui'];
 const ESITI_INOLTRO = ['risposto', 'occupato', 'nessuna_risposta', 'fallito', 'annullato'];
-const AZIONI_FINALI = new Set(['ascolta', 'inoltra', 'riaggancia']);
+const AZIONI_FINALI = new Set(['ascolta', 'inoltra', 'riaggancia', 'prosegui']);
 
 const azioni = {
   parla: (testo, lingua) => ({ tipo: 'parla', testo, lingua }),
   ascolta: (lingua, contesto) => ({ tipo: 'ascolta', lingua, contesto }),
   inoltra: (numero, squilloSec) => ({ tipo: 'inoltra', numero, squilloSec }),
   riaggancia: () => ({ tipo: 'riaggancia' }),
+  prosegui: (contesto) => ({ tipo: 'prosegui', contesto }),
 };
 
 // Controlla che la lista rispetti il protocollo: usata nei test e dagli adattatori.
@@ -57,7 +63,7 @@ function verificaAzioni(lista) {
     throw new Error('Il centralino deve restituire almeno un\'azione');
   }
   lista.forEach((azione, i) => {
-    if (!['parla', 'ascolta', 'inoltra', 'riaggancia'].includes(azione.tipo)) {
+    if (!['parla', 'ascolta', 'inoltra', 'riaggancia', 'prosegui'].includes(azione.tipo)) {
       throw new Error(`Azione sconosciuta: ${azione.tipo}`);
     }
     if (AZIONI_FINALI.has(azione.tipo) && i !== lista.length - 1) {
@@ -65,7 +71,7 @@ function verificaAzioni(lista) {
     }
   });
   if (!AZIONI_FINALI.has(lista.at(-1).tipo)) {
-    throw new Error('La lista deve finire con ascolta, inoltra o riaggancia');
+    throw new Error('La lista deve finire con ascolta, inoltra, riaggancia o prosegui');
   }
   return lista;
 }

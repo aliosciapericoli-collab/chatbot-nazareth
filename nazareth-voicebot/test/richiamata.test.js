@@ -15,11 +15,12 @@ const twilio = require('twilio');
 const { createApp } = require('../server');
 const { creaAssistente, estraiRichiamata, SYSTEM_PROMPT, SYSTEM_PROMPT_SENZA_RICHIAMATA } = require('../src/claude');
 const { componiEmail } = require('../src/notifiche/email-richiamata');
+const { RICHIESTA_DOPO_SILENZIO } = require('../src/centralino/messaggi');
 const { leggiNumero, numeroProponibile } = require('../src/centralino/numeri');
 
 const NUMERO_CLIENTE = '+393331234567';
 const BLOCCO = (dati) => `[RICHIAMATA]${JSON.stringify(dati)}[/RICHIAMATA]`;
-const CONFERMA = 'Perfetto, ho lasciato il messaggio alla reception: la ricontatteranno in orario di apertura. I suoi dati servono solo per ricontattarla e vengono cancellati dopo la richiamata. Posso esserle utile in altro?';
+const CONFERMA = 'Perfetto, ho lasciato il messaggio alla reception: la ricontattiamo in orario di apertura. I suoi dati servono solo per ricontattarla e vengono cancellati dopo la richiamata. Posso esserle utile in altro?';
 
 // Claude simulato: risponde con i testi in coda e registra le richieste.
 function claudeFinto(risposte) {
@@ -200,7 +201,7 @@ describe('richiamata', () => {
     assert.ok(evento);
     assert.equal(evento.motivo, 'smtp_non_configurato');
     // Senza SMTP a Claude non arriva nessuna istruzione sulla richiamata.
-    assert.equal(richieste[0].system, SYSTEM_PROMPT_SENZA_RICHIAMATA);
+    assert.ok(richieste[0].system.startsWith(SYSTEM_PROMPT_SENZA_RICHIAMATA));
     assert.equal(evento.chiamataId, 'CA_richiamata');
     assert.doesNotMatch(log.join('\n'), /Mario|3331234567|Gruppo/);
   });
@@ -296,8 +297,22 @@ describe('richiamata: funzioni di supporto', () => {
     assert.match(SYSTEM_PROMPT, /La richiamata si può lasciare a qualsiasi ora, anche di notte\./);
     // Le regole generali restano fuori dalla sezione sulla richiamata.
     const [generali, richiamata] = SYSTEM_PROMPT.split('Richiamata dalla reception:');
-    assert.match(generali, /Dai del lei al chiamante/);
-    assert.doesNotMatch(richiamata.split('<base_di_conoscenza>')[0], /Dai del lei/);
+    assert.match(generali, /Dai sempre del lei al chiamante/);
+    assert.doesNotMatch(richiamata.split("<base_di_conoscenza>")[0], /Dai sempre del lei/);
+  });
+
+  test('formule di cortesia corrette con il lei', () => {
+    for (const prompt of [SYSTEM_PROMPT, SYSTEM_PROMPT_SENZA_RICHIAMATA]) {
+      assert.match(prompt, /Dai sempre del lei al chiamante, con le formule di cortesia corrette: "Posso esserle utile in altro\?", "La ricontattiamo", "Le auguro una buona serata"/);
+      assert.match(prompt, /al massimo chiedi "Posso esserle utile in altro\?"/);
+      // La forma sbagliata compare solo come esempio da evitare.
+      assert.equal(prompt.match(/[Pp]uò essere utile/g).length, 1);
+      assert.match(prompt, /non dire mai "Può essere utile in altro\?"/);
+      assert.doesNotMatch(prompt, /può esserle utile|chiedi se può/);
+    }
+    assert.match(SYSTEM_PROMPT, /che la ricontattiamo in orario di apertura/);
+    assert.match(SYSTEM_PROMPT, /Chiudi con: "Posso esserle utile in altro\?"/);
+    assert.equal(RICHIESTA_DOPO_SILENZIO.continua, 'È ancora in linea? Posso esserle utile in altro?');
   });
 
   test('il prompt descrive la richiamata e mantiene i limiti', () => {

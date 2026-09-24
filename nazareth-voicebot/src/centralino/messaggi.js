@@ -23,6 +23,9 @@ const CONTATTI_PARLATI =
 const MESSAGGIO_RIPIEGO = `Mi scusi, ora non riesco a rispondere: ${CONTATTI_PARLATI} Grazie, arrivederci.`;
 const MESSAGGIO_LIMITE_TURNI = `Per altre informazioni ${CONTATTI_PARLATI} Grazie, arrivederci.`;
 const MESSAGGIO_NESSUNA_RISPOSTA = 'Non ho ricevuto risposta. La invitiamo a richiamare più tardi. Arrivederci.';
+// Detto mentre si verificano prezzi e disponibilità, per non superare i tempi del provider.
+const MESSAGGIO_ATTESA_VERIFICA = 'Un attimo, controllo la disponibilità.';
+const MESSAGGIO_RIPETA = 'Mi scusi, può ripetere la domanda?';
 
 module.exports = {
   INTRO,
@@ -30,4 +33,6 @@ module.exports = {
   MESSAGGIO_RIPIEGO,
   MESSAGGIO_LIMITE_TURNI,
   MESSAGGIO_NESSUNA_RISPOSTA,
+  MESSAGGIO_ATTESA_VERIFICA,
+  MESSAGGIO_RIPETA,
 };

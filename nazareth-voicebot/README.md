@@ -114,6 +114,32 @@ resta un log con il solo CallSid e un codice tecnico, e la dashboard mostra "Ema
 salvato su disco. Il testo della conversazione passa solo dalla memoria del server all'email;
 dopo la richiamata l'email va cancellata dalla casella della reception.
 
+### Prezzi e disponibilità in tempo reale (WuBook)
+
+Claude ha lo strumento `verifica_disponibilita` (arrivo, partenza o notti, adulti, bambini).
+Il bot chiede le date e le persone se mancano, interpreta le date parlate rispetto alla data di
+oggi (ora di Roma) e risponde con le tipologie libere, il prezzo totale indicativo del soggiorno
+con colazione e l'eventuale "ultima camera". Aggiunge sempre la tassa di soggiorno esclusa e la
+frase: "Il prezzo è quello del nostro sito in questo momento e può cambiare…". Se Claude la
+dimentica, la aggiunge il server. Il bot non prenota e non blocca camere; per gruppi oltre
+quattro camere non dà prezzi.
+
+- **Fonte:** la stessa chiamata della pagina pubblica di prenotazione
+  (`POST https://wubook.net/nneb/bk/inv?ep=17104f2c`, ricostruita da `nserp.jgz`), senza
+  credenziali. La risposta è JSON in base64: prezzo e disponibilità per notte e per prodotto
+  (tipologia + numero di adulti). Si usano solo le tariffe con colazione (`board: bb`) e le
+  stesse regole di prenotabilità della pagina (esaurito, chiuso, soggiorno minimo/massimo).
+- **Tempi:** timeout WuBook 4 secondi, cache di 5 minuti per coppia di date. Quando Claude usa
+  lo strumento il server risponde subito a Twilio con "Un attimo, controllo la disponibilità."
+  e un Redirect a `/prosegui`, dove arriva la risposta con i prezzi (entro 13 secondi).
+- **Errori:** se WuBook non risponde o cambia formato, il bot dice che in questo momento non
+  riesce a verificare e rimanda al sito, a WhatsApp o alla richiamata. La dashboard lo mostra
+  tra gli errori.
+- **Storico:** nello storico della chiamata resta solo il testo detto al cliente, non i dati
+  dello strumento: se il cliente chiede di nuovo, i prezzi vengono riverificati.
+- **Limiti:** i bambini sono contati come ospiti della camera; eventuali riduzioni vanno
+  verificate sul sito. Il prezzo è quello della tariffa pubblica "Sito" in quel momento.
+
 ### Endpoint (adattatore Twilio)
 
 ### Assistente virtuale (Claude)
@@ -141,6 +167,7 @@ dopo la richiamata l'email va cancellata dalla casella della reception.
 | POST   | `/dial-status`   | Esito dell'inoltro alla reception                   |
 | POST   | `/assistente`    | Nuovo tentativo di ascolto dopo un silenzio         |
 | POST   | `/handle-speech` | Testo riconosciuto: risposta di Claude              |
+| POST   | `/prosegui`      | Seconda parte della risposta dopo una verifica      |
 | GET    | `/health`        | Controllo di stato per l'hosting                    |
 
 ### Sicurezza
@@ -202,6 +229,9 @@ nazareth-voicebot/
 │   ├── provider/
 │   │   ├── index.js           # registro dei provider (TELEPHONY_PROVIDER)
 │   │   └── twilio.js          # adattatore Twilio (webhook, firma, TwiML)
+│   ├── disponibilita/
+│   │   ├── wubook.js          # client del motore WuBook: richiesta, lettura, cache
+│   │   └── strumento.js       # strumento verifica_disponibilita per Claude
 │   ├── notifiche/
 │   │   └── email-richiamata.js # email di richiamata alla reception (SMTP)
 │   ├── claude.js              # integrazione API Anthropic e system prompt
@@ -211,6 +241,7 @@ nazareth-voicebot/
 │   ├── centralino.test.js     # centralino e adattatore, senza HTTP
 │   ├── dashboard.test.js      # accesso, metriche e registro Twilio della dashboard
 │   ├── richiamata.test.js     # richiamata con Claude e SMTP simulati
+│   ├── disponibilita.test.js  # prezzi e disponibilità con WuBook e Claude simulati
 │   └── handle-speech.test.js  # flusso HTTP Twilio con Claude simulato
 ├── .env.example
 └── README.md
@@ -262,6 +293,9 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `SMTP_USER` / `SMTP_PASS`   | Credenziali SMTP                                               |
 | `CALLBACK_EMAIL_TO`         | Destinatario (default `info@nazarethresidence.com`)            |
 | `CALLBACK_EMAIL_FROM`       | Mittente (default `SMTP_USER`)                                 |
+| `WUBOOK_ENABLED`            | `false` disattiva prezzi e disponibilità (default attivi)      |
+| `WUBOOK_EP`                 | Id del motore di prenotazione (default `17104f2c`)             |
+| `WUBOOK_TIMEOUT_MS`         | Timeout delle richieste a WuBook (default 4000)                |
 | `DASHBOARD_PASSWORD`        | Password della dashboard `/dashboard` (vuota = disattivata)     |
 | `TELEPHONY_PROVIDER`        | Adattatore del provider telefonico (default `twilio`)          |
 | `RECEPTION_MODE`            | `auto` (default), `chiusa` o `aperta`: solo per le prove       |

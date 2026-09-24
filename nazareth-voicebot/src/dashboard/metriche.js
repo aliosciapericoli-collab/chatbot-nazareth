@@ -69,6 +69,12 @@ function creaMetriche({ maxChiamate = 500, maxErrori = 20, now = () => Date.now(
       case 'chiusura':
         r.causa = dettagli.causa;
         break;
+      case 'verifica_disponibilita':
+        if (dettagli.esito === 'non_raggiungibile' || dettagli.esito === 'formato_cambiato') {
+          errori.push({ ts: now(), chiamata: mascheraId(chiamataId), evento, tipo: dettagli.esito, messaggio: dettagli.messaggio || 'Verifica WuBook non riuscita' });
+          if (errori.length > maxErrori) errori.shift();
+        }
+        break;
       case 'richiamata_richiesta':
         r.richiamata = 'in_invio';
         break;

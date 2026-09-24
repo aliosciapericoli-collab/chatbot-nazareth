@@ -11,6 +11,7 @@ const PERCORSI = {
   esitoInoltro: '/dial-status',
   silenzio: '/assistente',
   parlato: '/handle-speech',
+  prosegui: '/prosegui',
 };
 
 // DialCallStatus di Twilio → esito neutro.
@@ -65,6 +66,12 @@ function creaProviderTwilio({ voce, validaFirma = true, publicBaseUrl, authToken
         case 'riaggancia':
           response.hangup();
           break;
+        case 'prosegui':
+          response.redirect(
+            { method: 'POST' },
+            `${PERCORSI.prosegui}?${new URLSearchParams({ motivo: azione.contesto?.motivo ?? '' })}`
+          );
+          break;
         default:
           throw new Error(`Azione non supportata da Twilio: ${azione.tipo}`);
       }
@@ -108,6 +115,12 @@ function creaProviderTwilio({ voce, validaFirma = true, publicBaseUrl, authToken
       tipo: 'silenzio',
       chiamataId: req.body.CallSid,
       contesto: { motivo: req.query.motivo, tentativo: Number.parseInt(req.query.tentativo, 10) || 1 },
+    })));
+
+    r.post(PERCORSI.prosegui, verificaTwilio, gestisci((req) => ({
+      tipo: 'prosegui',
+      chiamataId: req.body.CallSid,
+      contesto: { motivo: String(req.query.motivo ?? '') },
     })));
 
     r.post(PERCORSI.parlato, verificaTwilio, gestisci((req) => ({

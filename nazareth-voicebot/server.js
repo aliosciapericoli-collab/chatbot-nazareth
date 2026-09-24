@@ -13,6 +13,8 @@ const { creaMetriche } = require('./src/dashboard/metriche');
 const { creaRegistroTwilio } = require('./src/dashboard/registro-twilio');
 const { creaDashboard } = require('./src/dashboard');
 const { creaNotificatoreRichiamata } = require('./src/notifiche/email-richiamata');
+const { creaClientWuBook } = require('./src/disponibilita/wubook');
+const { creaStrumentoDisponibilita } = require('./src/disponibilita/strumento');
 
 const PORT = process.env.PORT || 3000;
 
@@ -24,7 +26,13 @@ const LIMITE_RISPOSTA_MS = (Number.parseInt(process.env.CLAUDE_TIMEOUT_MS, 10) |
  * Crea l'app Express. Le dipendenze si possono sostituire nei test.
  */
 function createApp({
-  assistente = creaAssistente(),
+  // Se non viene passato, l'assistente si crea con lo strumento di verifica disponibilità.
+  assistente,
+  // Client WuBook sostituibile nei test.
+  wubook = creaClientWuBook({
+    ep: process.env.WUBOOK_EP || undefined,
+    timeoutMs: Number.parseInt(process.env.WUBOOK_TIMEOUT_MS, 10) || undefined,
+  }),
   conversazioni = creaConversationStore(),
   limiteRispostaMs = LIMITE_RISPOSTA_MS,
   provider = creaProvider(),
@@ -42,6 +50,12 @@ function createApp({
     logPredefinito(chiamataId, evento, dettagli);
     metriche.registra(chiamataId, evento, dettagli);
   };
+
+  // Prezzi e disponibilità in tempo reale (WUBOOK_ENABLED=false per disattivarli).
+  const disponibilitaAttiva = process.env.WUBOOK_ENABLED !== 'false';
+  assistente ??= creaAssistente({
+    strumenti: disponibilitaAttiva ? [creaStrumentoDisponibilita({ wubook, log })] : [],
+  });
 
   const notificatore = creaNotificatoreRichiamata({
     host: process.env.SMTP_HOST,
@@ -99,6 +113,7 @@ function createApp({
       timeoutClaudeMs: Number.parseInt(process.env.CLAUDE_TIMEOUT_MS, 10) || 8000,
       maxTurni,
       voce: process.env.TTS_VOICE || 'Polly.Bianca-Neural',
+      disponibilitaWuBook: disponibilitaAttiva,
       emailRichiamata: notificatore.configurato ? process.env.CALLBACK_EMAIL_TO || 'info@nazarethresidence.com' : null,
       versione: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
     }),

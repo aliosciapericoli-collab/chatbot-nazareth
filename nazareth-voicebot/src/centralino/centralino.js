@@ -9,6 +9,8 @@ const {
   MESSAGGIO_RIPIEGO,
   MESSAGGIO_LIMITE_TURNI,
   MESSAGGIO_NESSUNA_RISPOSTA,
+  MESSAGGIO_ATTESA_VERIFICA,
+  MESSAGGIO_RIPETA,
 } = require('./messaggi');
 
 // Esiti dell'inoltro per cui la reception non ha risposto: passa all'assistente.
@@ -47,6 +49,7 @@ function logPredefinito(chiamataId, evento, dettagli = {}) {
  * @param {(dati: object) => Promise<boolean>} [opzioni.notificaRichiamata] invio della richiesta
  *   di richiamata alla reception; chiamata dopo la risposta al provider, non deve mai lanciare
  * @param {boolean} [opzioni.richiamataDisponibile] se false il bot non offre la richiamata
+ * @param {number} [opzioni.limiteVerificaMs] tempo massimo per completare una verifica con strumenti
  * @param {string[]} [opzioni.numeriEsclusi] numeri della struttura da non proporre come recapito
  */
 function creaCentralino({
@@ -65,8 +68,13 @@ function creaCentralino({
   // La richiamata si offre solo se c'è un modo di consegnarla (email configurata).
   richiamataDisponibile = false,
   numeriEsclusi = [],
+  // Tempo massimo per completare una verifica (strumenti + risposta finale di Claude),
+  // dal momento in cui è partita. Deve restare sotto il limite del provider (15 s Twilio).
+  limiteVerificaMs = 13000,
   log = logPredefinito,
 }) {
+  // Verifiche in corso: la risposta arriva con l'evento "prosegui".
+  const verificheInCorso = new Map(); // chiamataId → { promessa, messages, numeroAffidabile, inizio }
   const parla = (testo) => azioni.parla(testo, lingua);
   const ascolta = (motivo, tentativo) => azioni.ascolta(lingua, { motivo, tentativo });
 
@@ -160,30 +168,80 @@ function creaCentralino({
 
     const inizio = Date.now();
     try {
-      const { testo: risposta, fine, richiamata } = await conLimiteDiTempo(
-        assistente.rispondi(messages, datiChiamata),
+      const risposta = await conLimiteDiTempo(
+        assistente.rispondi(messages, { ...datiChiamata, chiamataId }),
         limiteRispostaMs
       );
-      log(chiamataId, 'risposta_claude', { ms: Date.now() - inizio, turno: messages.length, fine });
 
-      if (richiamata) {
-        gestisciRichiamata(chiamataId, richiamata, [...messages, { role: 'assistant', content: risposta }], numeroAffidabile);
+      if (risposta.inVerifica) {
+        // Claude usa uno strumento: si risponde subito al provider e si completa dopo.
+        avviaVerifica(chiamataId, risposta.completa, messages, numeroAffidabile);
+        return [parla(MESSAGGIO_ATTESA_VERIFICA), azioni.prosegui({ motivo: 'verifica' })];
       }
 
-      if (fine) return chiudi(chiamataId, risposta, 'congedo');
-
-      messages.push({ role: 'assistant', content: risposta });
-      conversazioni.salva(chiamataId, messages);
-      return [parla(risposta), ascolta('continua', 1)];
+      log(chiamataId, 'risposta_claude', { ms: Date.now() - inizio, turno: messages.length, fine: risposta.fine });
+      return concludi(chiamataId, risposta, messages, numeroAffidabile);
     } catch (error) {
-      // Il messaggio d'errore dell'API non contiene il parlato del chiamante.
-      log(chiamataId, 'errore_claude', {
-        ms: Date.now() - inizio,
-        tipo: error.name,
-        status: error.status,
-        messaggio: String(error.message).slice(0, 300),
+      return erroreClaude(chiamataId, error, inizio);
+    }
+  }
+
+  function erroreClaude(chiamataId, error, inizio) {
+    // Il messaggio d'errore dell'API non contiene il parlato del chiamante.
+    log(chiamataId, 'errore_claude', {
+      ms: Date.now() - inizio,
+      tipo: error.name,
+      status: error.status,
+      messaggio: String(error.message).slice(0, 300),
+    });
+    return chiudi(chiamataId, MESSAGGIO_RIPIEGO, 'ripiego');
+  }
+
+  // Risposta finale di Claude: richiamata, congedo oppure nuovo ascolto.
+  function concludi(chiamataId, { testo: risposta, fine, richiamata }, messages, numeroAffidabile) {
+    if (richiamata) {
+      gestisciRichiamata(chiamataId, richiamata, [...messages, { role: 'assistant', content: risposta }], numeroAffidabile);
+    }
+
+    if (fine) return chiudi(chiamataId, risposta, 'congedo');
+
+    // Nello storico resta solo il testo detto al chiamante: i dati degli strumenti no,
+    // così i prezzi vengono sempre riverificati.
+    messages.push({ role: 'assistant', content: risposta });
+    conversazioni.salva(chiamataId, messages);
+    return [parla(risposta), ascolta('continua', 1)];
+  }
+
+  function avviaVerifica(chiamataId, completa, messages, numeroAffidabile) {
+    const inizio = Date.now();
+    const promessa = conLimiteDiTempo(Promise.resolve().then(completa), limiteVerificaMs);
+    promessa.catch(() => {}); // l'esito viene letto in "prosegui"
+    verificheInCorso.set(chiamataId, { promessa, messages, numeroAffidabile, inizio });
+    // Se il chiamante riaggancia, il risultato non viene mai letto: si libera la memoria.
+    setTimeout(() => {
+      if (verificheInCorso.get(chiamataId)?.promessa === promessa) verificheInCorso.delete(chiamataId);
+    }, limiteVerificaMs + 60000).unref();
+  }
+
+  async function prosegui({ chiamataId }) {
+    const verifica = verificheInCorso.get(chiamataId);
+    if (!verifica) {
+      // Per esempio dopo un riavvio del server: si chiede di ripetere.
+      log(chiamataId, 'verifica_non_trovata');
+      return [parla(MESSAGGIO_RIPETA), ascolta('continua', 1)];
+    }
+    verificheInCorso.delete(chiamataId);
+    try {
+      const risposta = await verifica.promessa;
+      log(chiamataId, 'risposta_claude', {
+        ms: Date.now() - verifica.inizio,
+        turno: verifica.messages.length,
+        fine: risposta.fine,
+        strumenti: risposta.esitiStrumenti,
       });
-      return chiudi(chiamataId, MESSAGGIO_RIPIEGO, 'ripiego');
+      return concludi(chiamataId, risposta, verifica.messages, verifica.numeroAffidabile);
+    } catch (error) {
+      return erroreClaude(chiamataId, error, verifica.inizio);
     }
   }
 
@@ -192,6 +250,7 @@ function creaCentralino({
     esito_inoltro: esitoInoltro,
     silenzio,
     parlato,
+    prosegui,
   };
 
   return {
