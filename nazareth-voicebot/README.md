@@ -19,10 +19,11 @@ Twilio chiama `POST /voice` all'arrivo di ogni chiamata:
 `POST /handle-speech` riceve il testo riconosciuto da Twilio e lo invia a Claude
 (`src/claude.js`, SDK ufficiale `@anthropic-ai/sdk`):
 
-- **Base di conoscenza:** `knowledge/nazareth.md` è l'unica fonte di informazioni. Il prompt
-  vieta di inventare e indica cosa non è noto (prezzi, disponibilità, orari di check-in/out,
-  cancellazione, tassa di soggiorno, costi animali): in quei casi il bot rimanda a WhatsApp,
-  email, sito o reception. Per aggiornare le informazioni modifica il file e riavvia il server.
+- **Base di conoscenza:** `knowledge/nazareth.md` è l'unica fonte di informazioni, con la FAQ
+  ufficiale del sito come fonte prevalente. Il prompt vieta di inventare; prezzi e
+  disponibilità non sono noti e il bot rimanda sempre a sito o WhatsApp. Animali, self
+  check-in e partenza posticipata non vengono mai confermati. Per aggiornare le informazioni
+  modifica il file e riavvia il server.
 - **Conversazione:** lo storico è tenuto in memoria per `CallSid` (scadenza 30 minuti, massimo
   `CONVERSATION_MAX_TURNS` domande). Dopo ogni risposta il bot riascolta; se il chiamante
   saluta, si congeda e chiude.

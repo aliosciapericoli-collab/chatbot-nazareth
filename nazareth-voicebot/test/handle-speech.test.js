@@ -13,6 +13,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { createApp, isReceptionChiusa, MESSAGGIO_RIPIEGO } = require('../server');
 const { creaAssistente, SYSTEM_PROMPT, DEFAULT_MODEL } = require('../src/claude');
 const { creaConversationStore } = require('../src/conversation-store');
+const { knowledgeBase } = require('../src/knowledge-base');
 
 // Finto client Anthropic: registra le richieste e risponde con `comportamento`.
 function creaClientFinto(comportamento) {
@@ -88,19 +89,22 @@ describe('POST /handle-speech', () => {
     assert.equal(options.maxRetries, 0);
 
     // Secondo turno: lo storico della stessa chiamata viene reinviato.
-    clientCorrente = creaClientFinto(() => rispostaTesto('Sì, i cani sono ammessi in camera senza limiti di taglia.'));
-    await postTwilio('/handle-speech', { CallSid: 'CA_nota', SpeechResult: 'E il cane?' });
+    clientCorrente = creaClientFinto(() => rispostaTesto('La colazione a buffet è servita dalle sette e trenta alle dieci.'));
+    await postTwilio('/handle-speech', { CallSid: 'CA_nota', SpeechResult: 'E la colazione?' });
     assert.deepEqual(clientCorrente.richieste[0].params.messages, [
       { role: 'user', content: 'Avete il parcheggio?' },
       { role: 'assistant', content: 'Sì, il parcheggio privato è gratuito ed è all\'interno della struttura.' },
-      { role: 'user', content: 'E il cane?' },
+      { role: 'user', content: 'E la colazione?' },
     ]);
   });
 
   test('domanda non nota: il prompt vieta di inventare e la risposta rimanda ai contatti', async () => {
     assert.match(SYSTEM_PROMPT, /Usa SOLO le informazioni della base di conoscenza/);
-    assert.match(SYSTEM_PROMPT, /Informazioni NON disponibili/);
-    assert.match(SYSTEM_PROMPT, /tassa di soggiorno/);
+    const nonNote = SYSTEM_PROMPT.split('## Informazioni NON disponibili')[1];
+    assert.ok(nonNote, 'la sezione delle informazioni non note deve esserci');
+    assert.match(nonNote, /prezzi/);
+    assert.match(nonNote, /disponibilità/);
+    assert.doesNotMatch(nonNote, /tassa di soggiorno|check-in|cancellazione/);
 
     const risposta = 'Mi dispiace, non ho informazioni sui prezzi. Può scriverci su WhatsApp al tre quattro otto, nove zero cinque, quattro sette due tre.';
     clientCorrente = creaClientFinto(() => rispostaTesto(risposta));
@@ -214,6 +218,20 @@ describe('accoglienza e regole', () => {
     assert.match(SYSTEM_PROMPT, /entro le venti/);
     assert.match(SYSTEM_PROMPT, /nessun operatore è disponibile/);
     assert.match(SYSTEM_PROMPT, /chiedi gentilmente di ripetere/);
+    assert.match(SYSTEM_PROMPT, /Animali: non dire mai che sono ammessi senza condizioni/);
+    assert.match(SYSTEM_PROMPT, /Partenza posticipata: non confermarla mai/);
+  });
+
+  test('base di conoscenza aggiornata dalla FAQ ufficiale', () => {
+    assert.match(knowledgeBase, /domande-frequenti-hotel-nazareth/);
+    assert.match(knowledgeBase, /Check-in dalle 12:30/);
+    assert.match(knowledgeBase, /Check-out entro le 10:30/);
+    assert.match(knowledgeBase, /dalle 7:30 alle 10:00/);
+    assert.match(knowledgeBase, /2,30 euro a persona per notte/);
+    assert.match(knowledgeBase, /SOLO previa autorizzazione della Direzione/);
+    assert.match(knowledgeBase, /Due sale meeting da 60 e da 50 posti/);
+    assert.doesNotMatch(knowledgeBase, /senza limiti? di taglia/i);
+    assert.doesNotMatch(knowledgeBase, /110 posti/);
   });
 });
 
