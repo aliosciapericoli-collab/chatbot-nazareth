@@ -1,0 +1,468 @@
+<title>Vocalba, il centralino che non dorme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --fondo: #f6f3ec;
+    --fondo-2: #ffffff;
+    --riquadro: #fbf9f4;
+    --linea: #e3ddd1;
+    --testo: #17181c;
+    --testo-2: #4c4e55;
+    --testo-3: #6e7079;
+    --alba: #b35a12;
+    --alba-forte: #8f4508;
+    --alba-velo: rgba(179, 90, 18, 0.10);
+    --notte: #151b2a;
+    --ok: #178a3a;
+    --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    --corpo: "Figtree", "Helvetica Neue", Arial, system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --fondo: #0f0f10;
+      --fondo-2: #151b2a;
+      --riquadro: #121724;
+      --linea: #262d3e;
+      --testo: #f1efe9;
+      --testo-2: #bcc0c9;
+      --testo-3: #8e94a1;
+      --alba: #f6a247;
+      --alba-forte: #ffc27a;
+      --alba-velo: rgba(246, 162, 71, 0.12);
+      --notte: #0b0e16;
+      --ok: #3ccf6a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --fondo: #0f0f10; --fondo-2: #151b2a; --riquadro: #121724; --linea: #262d3e;
+    --testo: #f1efe9; --testo-2: #bcc0c9; --testo-3: #8e94a1;
+    --alba: #f6a247; --alba-forte: #ffc27a; --alba-velo: rgba(246, 162, 71, 0.12);
+    --notte: #0b0e16; --ok: #3ccf6a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--testo);
+    font: 17px/1.6 var(--corpo);
+    -webkit-font-smoothing: antialiased;
+  }
+  .pagina { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 24px 64px; }
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; font-weight: 700; }
+  h3 { font-size: 19px; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; }
+  p { margin: 0; }
+  a { color: var(--alba-forte); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--alba); outline-offset: 3px; border-radius: 6px; }
+  .etichetta { font: 500 12px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--alba-forte); }
+  .sezione { padding-block: 56px 8px; display: grid; gap: 28px; }
+  .intro { display: grid; gap: 12px; max-width: 64ch; }
+  .intro p { color: var(--testo-2); font-size: 18px; }
+
+  /* Testata */
+  .testata { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 4px 32px; flex-wrap: wrap; }
+  .firma { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: 700; font-size: 18px; }
+  .firma small { display: block; font: 500 13px/1.3 var(--corpo); color: var(--testo-3); letter-spacing: 0; }
+  .sole { width: 40px; height: 40px; flex: none; }
+  .testata nav { display: flex; gap: 18px; flex-wrap: wrap; font-size: 15px; }
+  .testata nav a { color: var(--testo-2); text-decoration: none; }
+  .testata nav a:hover { color: var(--testo); }
+
+  /* Apertura */
+  .apertura { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+  @media (max-width: 880px) { .apertura { grid-template-columns: minmax(0, 1fr); } }
+  .apertura h1 { font-size: clamp(38px, 6.4vw, 68px); line-height: 1.02; font-weight: 800; margin-block: 14px 18px; }
+  .apertura h1 em { font-style: normal; color: var(--alba); }
+  .apertura .lead { font-size: 19px; color: var(--testo-2); max-width: 46ch; }
+  .azioni { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+  .bottone { display: inline-flex; align-items: center; gap: 8px; font: 600 16px/1 var(--corpo); padding: 14px 20px; border-radius: 999px; text-decoration: none; border: 1px solid var(--linea); color: var(--testo); background: var(--fondo-2); }
+  .bottone.pieno { background: var(--alba); border-color: var(--alba); color: #1a1004; }
+  .bottone.pieno:hover { background: var(--alba-forte); border-color: var(--alba-forte); }
+  .fatti { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 28px; font: 400 13.5px/1.4 var(--mono); color: var(--testo-3); }
+  .fatti b { color: var(--testo); font-weight: 500; }
+
+  /* La telefonata: la firma visiva della pagina */
+  .telefonata { background: var(--notte); color: #eceae4; border-radius: 22px; padding: 22px; box-shadow: 0 30px 80px rgba(10, 14, 22, 0.28); position: relative; overflow: hidden; }
+  .telefonata::before { content: ""; position: absolute; inset: auto -20% -60% -20%; height: 70%; background: radial-gradient(closest-side, rgba(246, 162, 71, 0.28), transparent); pointer-events: none; }
+  .telefonata .intesta { display: flex; justify-content: space-between; align-items: center; font: 500 12.5px/1 var(--mono); color: #9aa3b5; margin-bottom: 18px; position: relative; }
+  .dal-vivo { display: inline-flex; align-items: center; gap: 8px; color: #f6a247; }
+  .dal-vivo::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #f6a247; box-shadow: 0 0 0 4px rgba(246, 162, 71, 0.2); }
+  .battute { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; position: relative; }
+  .battuta { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .battuta time { font: 500 12px/1.6 var(--mono); color: #7f8898; padding-top: 3px; }
+  .fumetto { border-radius: 14px; padding: 10px 14px; font-size: 15px; line-height: 1.5; }
+  .chi { display: block; font: 500 11px/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 2px; opacity: 0.75; }
+  .cliente .fumetto { background: #232b3d; color: #f1efe9; }
+  .bot .fumetto { background: rgba(246, 162, 71, 0.14); color: #fbe6cc; border: 1px solid rgba(246, 162, 71, 0.28); }
+  .sistema .fumetto { background: transparent; border: 1px dashed #3a4459; color: #aab3c4; font: 400 12.5px/1.5 var(--mono); padding: 8px 12px; }
+  .onda { display: flex; align-items: center; gap: 3px; height: 18px; margin-top: 16px; position: relative; }
+  .onda span { width: 3px; border-radius: 2px; background: #f6a247; opacity: 0.8; height: 30%; animation: onda 1.4s ease-in-out infinite; }
+  .onda span:nth-child(3n) { animation-delay: -0.4s; }
+  .onda span:nth-child(3n+1) { animation-delay: -0.9s; }
+  @keyframes onda { 0%, 100% { height: 25%; } 50% { height: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .onda span { animation: none; height: 60%; } }
+  .nota-esempio { font-size: 12.5px; color: #8e97a8; margin-top: 12px; position: relative; }
+
+  /* Capacità */
+  .capacita { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--linea); border: 1px solid var(--linea); border-radius: 18px; overflow: hidden; }
+  @media (max-width: 880px) { .capacita { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .capacita { grid-template-columns: minmax(0, 1fr); } }
+  .capacita > div { background: var(--fondo-2); padding: 22px; display: grid; gap: 8px; align-content: start; }
+  .capacita p { color: var(--testo-2); font-size: 15.5px; }
+  .capacita .dato { font: 500 12.5px/1.4 var(--mono); color: var(--alba-forte); }
+
+  /* Procedura: una sequenza vera, quindi numerata */
+  .procedura { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: passo; }
+  .passo { display: grid; grid-template-columns: 64px minmax(0, 1fr) minmax(0, 0.9fr); gap: 8px 24px; padding-block: 22px; border-top: 1px solid var(--linea); counter-increment: passo; }
+  .passo:last-child { border-bottom: 1px solid var(--linea); }
+  .passo::before { content: counter(passo, decimal-leading-zero); font: 500 15px/1.4 var(--mono); color: var(--alba); padding-top: 2px; }
+  .passo p { color: var(--testo-2); font-size: 16px; margin-top: 6px; }
+  .passo .decisione { font-size: 14.5px; color: var(--testo-2); background: var(--riquadro); border: 1px solid var(--linea); border-radius: 12px; padding: 12px 14px; align-self: start; }
+  .passo .decisione b { display: block; font: 500 11.5px/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--testo-3); margin-bottom: 4px; }
+  @media (max-width: 760px) {
+    .passo { grid-template-columns: 44px minmax(0, 1fr); }
+    .passo .decisione { grid-column: 2; }
+  }
+
+  /* Schema del percorso della chiamata */
+  .schema-contenitore { overflow-x: auto; }
+  .schema { display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 10px; min-width: 780px; align-items: stretch; }
+  .nodo { position: relative; background: var(--fondo-2); border: 1px solid var(--linea); border-radius: 14px; padding: 14px; display: grid; gap: 4px; align-content: start; }
+  .nodo:not(:last-child)::after { content: "→"; position: absolute; right: -14px; top: 50%; transform: translateY(-50%); color: var(--alba); font-weight: 700; z-index: 1; }
+  .nodo b { font-family: var(--display); font-size: 16px; }
+  .nodo span { color: var(--testo-3); font-size: 13.5px; line-height: 1.45; }
+  .nodo.centro { border-color: var(--alba); background: var(--alba-velo); }
+
+  /* Catalogo per attività */
+  .filtri { display: flex; flex-wrap: wrap; gap: 8px; }
+  .filtro { font: 500 14px/1 var(--corpo); padding: 10px 14px; border-radius: 999px; border: 1px solid var(--linea); background: var(--fondo-2); color: var(--testo-2); cursor: pointer; }
+  .filtro[aria-pressed="true"] { background: var(--testo); color: var(--fondo); border-color: var(--testo); }
+  .catalogo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 900px) { .catalogo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 580px) { .catalogo { grid-template-columns: minmax(0, 1fr); } }
+  .agente { background: var(--fondo-2); border: 1px solid var(--linea); border-radius: 16px; padding: 20px; display: grid; gap: 10px; align-content: start; }
+  .agente .testa { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .stato { font: 500 11.5px/1 var(--mono); letter-spacing: 0.04em; padding: 5px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid var(--linea); color: var(--testo-3); }
+  .stato.attivo { color: var(--ok); border-color: currentColor; }
+  .agente p { color: var(--testo-2); font-size: 15px; }
+  .agente dl { margin: 0; display: grid; gap: 6px; font-size: 14px; }
+  .agente dt { font: 500 11.5px/1.4 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--testo-3); }
+  .agente dd { margin: 0 0 6px; color: var(--testo-2); }
+  .tipi { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tipo { font-size: 12.5px; padding: 3px 9px; border-radius: 999px; background: var(--alba-velo); color: var(--testo); }
+  .agente[hidden] { display: none !important; }
+  .conteggio { font: 400 13.5px/1.4 var(--mono); color: var(--testo-3); }
+
+  /* Come si parte */
+  .percorso { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; counter-reset: tappa; }
+  @media (max-width: 900px) { .percorso { grid-template-columns: minmax(0, 1fr); } }
+  .percorso li { counter-increment: tappa; border-top: 2px solid var(--alba); padding-top: 14px; display: grid; gap: 6px; align-content: start; }
+  .percorso li::before { content: counter(tappa); font: 500 13px/1 var(--mono); color: var(--alba-forte); }
+  .percorso p { color: var(--testo-2); font-size: 15px; }
+
+  /* Domande */
+  .domande { display: grid; gap: 10px; }
+  details { background: var(--fondo-2); border: 1px solid var(--linea); border-radius: 14px; }
+  summary { cursor: pointer; list-style: none; padding: 16px 18px; font-weight: 600; display: flex; justify-content: space-between; gap: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--alba); font-weight: 700; }
+  details[open] summary::after { content: "–"; }
+  details p { padding: 0 18px 18px; color: var(--testo-2); font-size: 15.5px; max-width: 72ch; }
+
+  /* Chiusura */
+  .chiusura { margin-top: 64px; background: var(--notte); color: #eceae4; border-radius: 24px; padding: clamp(24px, 5vw, 48px); display: grid; gap: 18px; position: relative; overflow: hidden; }
+  .chiusura::after { content: ""; position: absolute; right: -80px; bottom: -120px; width: 320px; height: 320px; border-radius: 50%; background: radial-gradient(closest-side, rgba(246, 162, 71, 0.45), transparent); pointer-events: none; }
+  .chiusura h2 { color: #f7f3ea; max-width: 20ch; }
+  .chiusura p { color: #bfc5d1; max-width: 58ch; position: relative; }
+  .contatto { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; position: relative; }
+  .indirizzo { font: 500 16px/1 var(--mono); color: #ffd6a3; background: rgba(246, 162, 71, 0.10); border: 1px solid rgba(246, 162, 71, 0.3); padding: 12px 14px; border-radius: 12px; user-select: all; }
+  .copia { font: 600 14px/1 var(--corpo); padding: 12px 14px; border-radius: 12px; border: 1px solid #3a4459; background: transparent; color: #eceae4; cursor: pointer; }
+  .piede { margin-top: 28px; color: var(--testo-3); font-size: 13.5px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+</style>
+
+<div class="pagina">
+  <header class="testata">
+    <div class="firma">
+      <svg class="sole" viewBox="0 0 512 512" aria-hidden="true">
+        <defs>
+          <linearGradient id="cielo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2540"/><stop offset="1" stop-color="#0f1420"/></linearGradient>
+          <linearGradient id="luce" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#f08a3c"/><stop offset="1" stop-color="#f6c453"/></linearGradient>
+        </defs>
+        <rect width="512" height="512" rx="112" fill="url(#cielo)"/>
+        <circle cx="256" cy="300" r="118" fill="url(#luce)"/>
+        <rect x="96" y="300" width="320" height="130" fill="url(#cielo)"/>
+        <g stroke="#f6c453" stroke-width="22" stroke-linecap="round" fill="none"><path d="M150 352h40"/><path d="M216 336v32"/><path d="M256 322v60"/><path d="M296 336v32"/><path d="M322 352h40"/></g>
+      </svg>
+      <div>Vocalba<small>un progetto di Alioscia</small></div>
+    </div>
+    <nav aria-label="Sezioni">
+      <a href="#come">Come l'ho costruito</a>
+      <a href="#attivita">Per la tua attività</a>
+      <a href="#domande">Domande</a>
+    </nav>
+  </header>
+
+  <section class="apertura">
+    <div>
+      <span class="etichetta">Caso reale · Nazareth Residence, Viterbo</span>
+      <h1>Il centralino che risponde quando la reception <em>dorme</em>.</h1>
+      <p class="lead">Vocalba è un assistente telefonico costruito su misura. Di notte, o quando la linea è occupata, risponde in italiano, dà informazioni vere, verifica prezzi e camere libere sul motore di prenotazione e lascia alla reception chi va richiamato.</p>
+      <div class="azioni">
+        <a class="bottone pieno" href="https://alioscia.it/contatti">Parliamo della tua attività</a>
+        <a class="bottone" href="#come">Guarda come è fatto</a>
+      </div>
+      <div class="fatti">
+        <span><b>76</b> test automatici</span>
+        <span><b>0</b> trascrizioni conservate</span>
+        <span>ogni risposta entro <b>15 s</b></span>
+      </div>
+    </div>
+
+    <figure class="telefonata" aria-label="Esempio di telefonata con Vocalba">
+      <div class="intesta"><span class="dal-vivo">Chiamata in arrivo</span><span>reception chiusa</span></div>
+      <ol class="battute">
+        <li class="battuta bot"><time>23:14:02</time><div class="fumetto"><span class="chi">Vocalba</span>Benvenuto al Nazareth Residence, sono l'assistente virtuale. Al momento la reception è chiusa. Come posso aiutarla?</div></li>
+        <li class="battuta cliente"><time>23:14:09</time><div class="fumetto"><span class="chi">Cliente</span>Avete una doppia dal primo al tre ottobre? Siamo in due.</div></li>
+        <li class="battuta bot"><time>23:14:11</time><div class="fumetto"><span class="chi">Vocalba</span>Un attimo, controllo la disponibilità.</div></li>
+        <li class="battuta sistema"><time>23:14:12</time><div class="fumetto">verifica sul motore di prenotazione · 2 notti · 2 adulti · risposta in 1,2 s</div></li>
+        <li class="battuta bot"><time>23:14:15</time><div class="fumetto"><span class="chi">Vocalba</span>La camera doppia costa 166 euro in totale, colazione inclusa, ed è l'ultima disponibile. La tassa di soggiorno è esclusa. Il prezzo è quello del nostro sito in questo momento e può cambiare.</div></li>
+        <li class="battuta cliente"><time>23:14:31</time><div class="fumetto"><span class="chi">Cliente</span>Posso portare il cane?</div></li>
+        <li class="battuta bot"><time>23:14:33</time><div class="fumetto"><span class="chi">Vocalba</span>Gli animali sono ammessi solo con l'autorizzazione della Direzione, da chiedere prima di prenotare. Posso esserle utile in altro?</div></li>
+      </ol>
+      <div class="onda" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <p class="nota-esempio">Telefonata di esempio. Prezzi reali del sito il 24 settembre 2026 per l'1–3 ottobre; cambiano nel tempo.</p>
+    </figure>
+  </section>
+
+  <section class="sezione" aria-labelledby="t-cosa">
+    <div class="intro">
+      <span class="etichetta">Cosa fa</span>
+      <h2 id="t-cosa">Sei cose che un centralino di notte di solito non sa fare.</h2>
+    </div>
+    <div class="capacita">
+      <div><span class="dato">sempre attivo</span><h3>Risponde quando nessuno può</h3><p>Di notte risponde subito. Di giorno entra in gioco se la reception non risponde, tramite il trasferimento di chiamata del vostro numero.</p></div>
+      <div><span class="dato">tempo reale</span><h3>Prezzi veri, mai inventati</h3><p>Legge prezzi e camere libere dal motore di prenotazione del sito. Se una cifra non arriva da lì, il sistema la blocca prima che venga detta.</p></div>
+      <div><span class="dato">email alla reception</span><h3>Nessuna richiesta persa</h3><p>Chi vuole essere richiamato lascia nome, motivo e numero. La reception riceve un'email con il riepilogo, al mattino.</p></div>
+      <div><span class="dato">solo fonti verificate</span><h3>Dice solo quello che sapete voi</h3><p>Risponde dalla vostra base di conoscenza, costruita sulle informazioni ufficiali. Quello che non sa, lo dice e rimanda ai contatti giusti.</p></div>
+      <div><span class="dato">privacy</span><h3>Niente registrazioni</h3><p>Dichiara di essere un assistente virtuale fin dalla prima frase. Non conserva trascrizioni: nelle statistiche resta solo l'argomento della domanda.</p></div>
+      <div><span class="dato">dashboard Vocalba</span><h3>Vedete cosa è successo</h3><p>Un'app sul telefono racconta la notte: chiamate, preventivi dati, richiamate da fare e cosa chiedono i clienti.</p></div>
+    </div>
+  </section>
+
+  <section class="sezione" id="come" aria-labelledby="t-come">
+    <div class="intro">
+      <span class="etichetta">Come l'ho costruito</span>
+      <h2 id="t-come">Dieci passaggi, dall'idea alla prima telefonata vera.</h2>
+      <p>Questa è la procedura seguita per il Nazareth Residence. Per ogni attività si ripete, con le vostre fonti e i vostri strumenti.</p>
+    </div>
+    <ol class="procedura">
+      <li class="passo"><div><h3>Fonti e verifica dei dati</h3><p>Ho raccolto le informazioni dal sito ufficiale e dalla pagina delle domande frequenti, poi le ho fatte confermare alla struttura. Dove sito e informazioni interne non coincidevano, ha deciso il cliente.</p></div><div class="decisione"><b>Deciso</b>Elenco esplicito di ciò che il bot non sa, per evitare che improvvisi.</div></li>
+      <li class="passo"><div><h3>Una sola base di conoscenza</h3><p>Orari, servizi, regole della casa, gruppi, animali, tassa di soggiorno, cancellazioni: un unico documento con la fonte di ogni informazione.</p></div><div class="decisione"><b>Deciso</b>Aggiornare le risposte significa aggiornare un testo, non il codice.</div></li>
+      <li class="passo"><div><h3>Numero e voce</h3><p>Il numero della struttura resta lo stesso: la chiamata arriva al bot con il trasferimento di chiamata. Voce italiana naturale e riconoscimento vocale in italiano.</p></div><div class="decisione"><b>Deciso</b>Nessun cambio di numero per i clienti e nessun centralino da installare.</div></li>
+      <li class="passo"><div><h3>Il modo di rispondere</h3><p>Frasi brevi pensate per essere ascoltate, lei di cortesia, numeri detti come si pronunciano, niente conferme di prenotazioni. Se il cliente saluta, la chiamata si chiude con garbo.</p></div><div class="decisione"><b>Deciso</b>Regole scritte e verificate da test, non lasciate al caso.</div></li>
+      <li class="passo"><div><h3>Tempi di risposta</h3><p>Il telefono non aspetta: ogni risposta parte entro i limiti del provider. Quando serve una verifica il bot dice "un attimo" e intanto lavora; se qualcosa va storto, lascia i contatti invece del silenzio.</p></div><div class="decisione"><b>Deciso</b>Mai una linea muta: in ogni errore c'è una frase di ripiego.</div></li>
+      <li class="passo"><div><h3>Prezzi e disponibilità in tempo reale</h3><p>Collegamento in sola lettura al motore di prenotazione del sito: tipologie libere, prezzo totale del soggiorno, ultima camera. Nessuna prenotazione e nessuna camera bloccata.</p></div><div class="decisione"><b>Deciso</b>Se il motore non risponde entro 4 secondi, niente cifre: rimando al sito.</div></li>
+      <li class="passo"><div><h3>Richiamate via email</h3><p>Quando il cliente ha bisogno di una persona, il bot raccoglie nome, motivo e numero, ripete il riepilogo e manda un'email alla reception dopo aver chiuso la risposta.</p></div><div class="decisione"><b>Deciso</b>La richiamata si offre solo se l'email è configurata: niente promesse a vuoto.</div></li>
+      <li class="passo"><div><h3>Sicurezza e privacy</h3><p>Il server accetta solo chiamate firmate dal provider telefonico. Il bot dichiara di essere un'intelligenza artificiale, come chiede l'AI Act europeo, e i registri contengono solo codici tecnici.</p></div><div class="decisione"><b>Deciso</b>Dati personali solo per la richiamata, e cancellati dopo.</div></li>
+      <li class="passo"><div><h3>Test prima di ogni rilascio</h3><p>76 test automatici simulano telefonate, errori del modello, motore di prenotazione lento o cambiato, email che non parte. Poi prove reali al telefono.</p></div><div class="decisione"><b>Deciso</b>Ogni correzione nasce da un caso che prima falliva.</div></li>
+      <li class="passo"><div><h3>Messa online e dashboard</h3><p>Il servizio gira su un server dedicato sempre acceso. La struttura segue tutto dall'app Vocalba, con il proprio nome, anche dal telefono.</p></div><div class="decisione"><b>Deciso</b>Il provider telefonico si può cambiare senza riscrivere il bot.</div></li>
+    </ol>
+  </section>
+
+  <section class="sezione" aria-labelledby="t-schema">
+    <div class="intro">
+      <span class="etichetta">Il percorso di una chiamata</span>
+      <h2 id="t-schema">Cosa succede tra lo squillo e la risposta.</h2>
+    </div>
+    <div class="schema-contenitore">
+      <div class="schema">
+        <div class="nodo"><b>Il vostro numero</b><span>Il cliente chiama il solito numero. Se nessuno risponde, parte il trasferimento.</span></div>
+        <div class="nodo"><b>Linea telefonica</b><span>Il provider riceve la chiamata, trasforma la voce in testo e legge le risposte.</span></div>
+        <div class="nodo centro"><b>Centralino Vocalba</b><span>Decide cosa fare: orari, silenzi, richiamate, tempi massimi, frasi di ripiego.</span></div>
+        <div class="nodo"><b>Assistente</b><span>Il modello linguistico risponde solo dalla vostra base di conoscenza.</span></div>
+        <div class="nodo"><b>I vostri strumenti</b><span>Motore di prenotazione, email della reception, e domani calendario o gestionale.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sezione" id="attivita" aria-labelledby="t-attivita">
+    <div class="intro">
+      <span class="etichetta">Un agente per ogni attività</span>
+      <h2 id="t-attivita">Stessa base, costruita sul vostro mestiere.</h2>
+      <p>Il centralino è lo stesso; cambiano le fonti, le regole e gli strumenti collegati. Scegliete il tipo di risposta che vi serve per vedere le attività in cui l'ho previsto.</p>
+    </div>
+    <div class="filtri" role="group" aria-label="Filtra per tipo di risposta">
+      <button class="filtro" type="button" data-tipo="tutti" aria-pressed="true" id="f-tutti">Tutte</button>
+      <button class="filtro" type="button" data-tipo="informazioni" aria-pressed="false" id="f-informazioni">Informazioni</button>
+      <button class="filtro" type="button" data-tipo="preventivi" aria-pressed="false" id="f-preventivi">Preventivi e disponibilità</button>
+      <button class="filtro" type="button" data-tipo="appuntamenti" aria-pressed="false" id="f-appuntamenti">Appuntamenti e prenotazioni</button>
+      <button class="filtro" type="button" data-tipo="richiamate" aria-pressed="false" id="f-richiamate">Richiamate</button>
+      <button class="filtro" type="button" data-tipo="urgenze" aria-pressed="false" id="f-urgenze">Urgenze</button>
+    </div>
+    <p class="conteggio" id="conteggio" aria-live="polite"></p>
+    <div class="catalogo" id="catalogo">
+      <article class="agente" data-tipi="informazioni preventivi richiamate">
+        <div class="testa"><h3>Hotel, B&amp;B e case per ferie</h3><span class="stato attivo">attivo</span></div>
+        <p>Il caso del Nazareth Residence: informazioni sulla struttura, camere libere e prezzi dal sito, richiamate per gruppi e casi particolari.</p>
+        <dl><dt>Si collega a</dt><dd>motore di prenotazione, email della reception</dd></dl>
+        <div class="tipi"><span class="tipo">Informazioni</span><span class="tipo">Preventivi</span><span class="tipo">Richiamate</span></div>
+      </article>
+      <article class="agente" data-tipi="informazioni appuntamenti richiamate">
+        <div class="testa"><h3>Ristoranti e agriturismi</h3><span class="stato">su misura</span></div>
+        <p>Orari, menù, allergeni dichiarati, eventi. Raccoglie la richiesta di tavolo e la passa al locale, anche quando la sala è piena di clienti.</p>
+        <dl><dt>Si collega a</dt><dd>sistema di prenotazione tavoli, WhatsApp o email</dd></dl>
+        <div class="tipi"><span class="tipo">Informazioni</span><span class="tipo">Prenotazioni</span><span class="tipo">Richiamate</span></div>
+      </article>
+      <article class="agente" data-tipi="informazioni appuntamenti richiamate">
+        <div class="testa"><h3>Studi medici e dentistici</h3><span class="stato">su misura</span></div>
+        <p>Orari, prestazioni, preparazione alle visite, richieste di appuntamento. Non raccoglie dati clinici e non dà indicazioni sanitarie: per quello rimanda allo studio.</p>
+        <dl><dt>Si collega a</dt><dd>agenda dello studio, email della segreteria</dd></dl>
+        <div class="tipi"><span class="tipo">Informazioni</span><span class="tipo">Appuntamenti</span><span class="tipo">Richiamate</span></div>
+      </article>
+      <article class="agente" data-tipi="informazioni richiamate">
+        <div class="testa"><h3>Studi professionali</h3><span class="stato">su misura</span></div>
+        <p>Avvocati, commercialisti, notai: orari, documenti da portare, smistamento della richiesta al professionista giusto con un riepilogo scritto.</p>
+        <dl><dt>Si collega a</dt><dd>email dello studio, agenda condivisa</dd></dl>
+        <div class="tipi"><span class="tipo">Informazioni</span><span class="tipo">Richiamate</span></div>
+      </article>
+      <article class="agente" data-tipi="urgenze preventivi richiamate">
+        <div class="testa"><h3>Artigiani e pronto intervento</h3><span class="stato">su misura</span></div>
+        <p>Idraulici, elettricisti, fabbri: capisce se è un'urgenza, raccoglie indirizzo e problema, e avvisa subito chi è di turno invece di lasciare squillare.</p>
+        <dl><dt>Si collega a</dt><dd>SMS o WhatsApp al reperibile, email</dd></dl>
+        <div class="tipi"><span class="tipo">Urgenze</span><span class="tipo">Preventivi</span><span class="tipo">Richiamate</span></div>
+      </article>
+      <article class="agente" data-tipi="informazioni appuntamenti preventivi">
+        <div class="testa"><h3>Officine e carrozzerie</h3><span class="stato">su misura</span></div>
+        <p>Orari, servizi, tagliandi, revisioni. Prende la richiesta di appuntamento con modello e targa e la consegna all'officina già ordinata.</p>
+        <dl><dt>Si collega a</dt><dd>agenda dell'officina, email</dd></dl>
+        <div class="tipi"><span class="tipo">Informazioni</span><span class="tipo">Appuntamenti</span><span class="tipo">Preventivi</span></div>
+      </article>
+      <article class="agente" data-tipi="informazioni appuntamenti">
+        <div class="testa"><h3>Palestre e centri benessere</h3><span class="stato">su misura</span></div>
+        <p>Orari dei corsi, abbonamenti, prove gratuite. Prenota o sposta la lezione quando la reception è impegnata.</p>
+        <dl><dt>Si collega a</dt><dd>gestionale dei corsi, calendario</dd></dl>
+        <div class="tipi"><span class="tipo">Informazioni</span><span class="tipo">Prenotazioni</span></div>
+      </article>
+      <article class="agente" data-tipi="informazioni appuntamenti richiamate">
+        <div class="testa"><h3>Agenzie immobiliari</h3><span class="stato">su misura</span></div>
+        <p>Risponde sugli immobili in vetrina, raccoglie la richiesta di visita e il recapito, e la assegna all'agente della zona.</p>
+        <dl><dt>Si collega a</dt><dd>elenco immobili, agenda degli agenti</dd></dl>
+        <div class="tipi"><span class="tipo">Informazioni</span><span class="tipo">Appuntamenti</span><span class="tipo">Richiamate</span></div>
+      </article>
+      <article class="agente" data-tipi="informazioni preventivi richiamate">
+        <div class="testa"><h3>Negozi e botteghe</h3><span class="stato">su misura</span></div>
+        <p>Orari, disponibilità di un prodotto, stato di un ordine o di una riparazione. Lascia al negozio le richieste che vanno seguite a mano.</p>
+        <dl><dt>Si collega a</dt><dd>catalogo o gestionale, email</dd></dl>
+        <div class="tipi"><span class="tipo">Informazioni</span><span class="tipo">Disponibilità</span><span class="tipo">Richiamate</span></div>
+      </article>
+      <article class="agente" data-tipi="urgenze appuntamenti informazioni">
+        <div class="testa"><h3>Veterinari</h3><span class="stato">su misura</span></div>
+        <p>Orari, visite, vaccinazioni. Di notte riconosce un'emergenza e indica subito il reperibile o il pronto soccorso veterinario più vicino.</p>
+        <dl><dt>Si collega a</dt><dd>agenda dell'ambulatorio, numero del reperibile</dd></dl>
+        <div class="tipi"><span class="tipo">Urgenze</span><span class="tipo">Appuntamenti</span><span class="tipo">Informazioni</span></div>
+      </article>
+      <article class="agente" data-tipi="informazioni appuntamenti richiamate">
+        <div class="testa"><h3>Scuole, corsi e autoscuole</h3><span class="stato">su misura</span></div>
+        <p>Calendari, costi pubblicati, documenti per l'iscrizione, date d'esame. Raccoglie le richieste di informazioni per la segreteria.</p>
+        <dl><dt>Si collega a</dt><dd>calendario dei corsi, email della segreteria</dd></dl>
+        <div class="tipi"><span class="tipo">Informazioni</span><span class="tipo">Iscrizioni</span><span class="tipo">Richiamate</span></div>
+      </article>
+      <article class="agente" data-tipi="informazioni appuntamenti richiamate">
+        <div class="testa"><h3>Parrocchie, enti e associazioni</h3><span class="stato">su misura</span></div>
+        <p>Orari di uffici e celebrazioni, iscrizioni, ritiri e attività. Raccoglie le richieste per la segreteria senza tenere occupato il volontario di turno.</p>
+        <dl><dt>Si collega a</dt><dd>calendario delle attività, email della segreteria</dd></dl>
+        <div class="tipi"><span class="tipo">Informazioni</span><span class="tipo">Iscrizioni</span><span class="tipo">Richiamate</span></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="sezione" aria-labelledby="t-parte">
+    <div class="intro">
+      <span class="etichetta">Come si parte</span>
+      <h2 id="t-parte">Dalla prima chiacchierata alla prima notte coperta.</h2>
+    </div>
+    <ol class="percorso">
+      <li><h3>Conoscenza</h3><p>Capiamo quali chiamate perdete e cosa vi chiedono più spesso.</p></li>
+      <li><h3>Fonti</h3><p>Raccogliamo sito, regole e strumenti che già usate, e decidiamo cosa il bot non deve dire.</p></li>
+      <li><h3>Prova</h3><p>Il vostro agente risponde su un numero di prova: lo chiamate e lo correggiamo insieme.</p></li>
+      <li><h3>Accensione</h3><p>Attiviamo il trasferimento sul vostro numero, prima di notte poi quando serve.</p></li>
+      <li><h3>Affiancamento</h3><p>Guardate la dashboard; aggiustiamo le risposte sulle domande vere dei clienti.</p></li>
+    </ol>
+  </section>
+
+  <section class="sezione" id="domande" aria-labelledby="t-domande">
+    <div class="intro">
+      <span class="etichetta">Domande</span>
+      <h2 id="t-domande">Quello che chiedono tutti, prima di cominciare.</h2>
+    </div>
+    <div class="domande">
+      <details><summary>Devo cambiare numero di telefono?</summary><p>No. Si usa il trasferimento di chiamata del vostro gestore: il cliente chiama il solito numero e, quando nessuno risponde o di notte, la chiamata passa all'agente.</p></details>
+      <details><summary>E se il bot non sa rispondere?</summary><p>Lo dice e rimanda ai contatti giusti, oppure raccoglie la richiesta di richiamata. Non inventa: le informazioni vengono solo dalla vostra base di conoscenza e dagli strumenti collegati, e le cifre non verificate vengono bloccate.</p></details>
+      <details><summary>Il bot prende prenotazioni?</summary><p>Nel caso dell'hotel no: dà prezzi e disponibilità in sola lettura e rimanda al sito o a WhatsApp per prenotare. Dove il vostro gestionale lo permette, si può valutare di registrare richieste di appuntamento.</p></details>
+      <details><summary>Le telefonate vengono registrate?</summary><p>No. L'agente dichiara subito di essere un assistente virtuale e che le parole vengono trascritte per rispondere. Le trascrizioni non vengono conservate; nelle statistiche resta solo l'argomento della domanda. I dati per una richiamata servono solo a quella e vanno cancellati dopo.</p></details>
+      <details><summary>Dove passano i dati?</summary><p>Il servizio usa fornitori specializzati per telefonia, server e modello linguistico, ciascuno con i propri contratti per il trattamento dei dati. Nel caso del Nazareth Residence si trovano negli Stati Uniti; per ogni progetto valutiamo insieme dove far girare i server e quali fornitori usare, anche in base alla vostra informativa privacy.</p></details>
+      <details><summary>Si può fare anche per chat o WhatsApp?</summary><p>Sì. Il centralino è separato dal canale: base di conoscenza, regole e strumenti restano gli stessi, cambia solo il collegamento.</p></details>
+    </div>
+  </section>
+
+  <section class="chiusura" aria-labelledby="t-chiusura">
+    <span class="etichetta" style="color:#ffc27a">Su selezione, per poche realtà alla volta</span>
+    <h2 id="t-chiusura">Raccontatemi le chiamate che oggi perdete.</h2>
+    <p>Costruisco ogni agente su misura, partendo dalle vostre fonti e dai vostri strumenti. Scrivetemi con il tipo di attività e quando vi arrivano le chiamate che non riuscite a prendere.</p>
+    <div class="contatto">
+      <span class="indirizzo" id="indirizzo">info@alioscia.it</span>
+      <button class="copia" type="button" id="copia">Copia l'indirizzo</button>
+      <a class="bottone pieno" href="https://alioscia.it/contatti">Vai ai contatti</a>
+    </div>
+  </section>
+
+  <footer class="piede">
+    <span>Vocalba · progetto di Alioscia · alioscia.it</span>
+    <span>Esempi di attività diverse dall'hotel: agenti da costruire su misura.</span>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    const filtri = [...document.querySelectorAll('.filtro')];
+    const agenti = [...document.querySelectorAll('.agente')];
+    const conteggio = document.getElementById('conteggio');
+
+    function applica(tipo) {
+      let visibili = 0;
+      for (const a of agenti) {
+        const mostra = tipo === 'tutti' || a.dataset.tipi.split(' ').includes(tipo);
+        a.hidden = !mostra;
+        if (mostra) visibili += 1;
+      }
+      for (const f of filtri) f.setAttribute('aria-pressed', String(f.dataset.tipo === tipo));
+      conteggio.textContent = `${visibili} attività su ${agenti.length}`;
+    }
+
+    for (const f of filtri) f.addEventListener('click', () => applica(f.dataset.tipo));
+    applica('tutti');
+
+    const bottone = document.getElementById('copia');
+    bottone.addEventListener('click', async () => {
+      const testo = document.getElementById('indirizzo').textContent;
+      try {
+        await navigator.clipboard.writeText(testo);
+        bottone.textContent = 'Indirizzo copiato';
+      } catch {
+        const selezione = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(document.getElementById('indirizzo'));
+        selezione.removeAllRanges();
+        selezione.addRange(range);
+        bottone.textContent = 'Selezionato: copia con Ctrl+C';
+      }
+    });
+  })();
+</script>
