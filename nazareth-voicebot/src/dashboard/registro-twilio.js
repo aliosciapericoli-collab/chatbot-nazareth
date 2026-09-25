@@ -73,7 +73,29 @@ function creaRegistroTwilio({ accountSid, authToken, client, limite = 500, mostr
     }
   }
 
-  return { ultimeChiamate };
+  /**
+   * Chiamate degli ultimi giorni con i dati completi, per l'archivio: il numero non è
+   * mascherato perché l'archivio è consultabile solo dopo l'accesso alla dashboard.
+   */
+  async function chiamateRecenti({ giorni = 2 } = {}) {
+    if (!disponibile) return [];
+    api ??= twilio(accountSid, authToken);
+    const calls = await api.calls.list({ limit: limite, startTimeAfter: new Date(now() - giorni * 86400000) });
+    return calls.map((c) => ({
+      sid: c.sid,
+      from: c.from,
+      startTime: c.startTime,
+      endTime: c.endTime,
+      duration: c.duration,
+      status: c.status,
+      price: c.price,
+      priceUnit: c.priceUnit,
+      direction: c.direction,
+      parentCallSid: c.parentCallSid,
+    }));
+  }
+
+  return { ultimeChiamate, chiamateRecenti, disponibile };
 }
 
 module.exports = { creaRegistroTwilio, mascheraNumero };

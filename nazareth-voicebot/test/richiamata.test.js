@@ -317,7 +317,7 @@ describe('richiamata: funzioni di supporto', () => {
 
   test('il prompt descrive la richiamata e mantiene i limiti', () => {
     assert.match(SYSTEM_PROMPT, /Se vuole, lascio un messaggio alla reception e la ricontattiamo in orario di apertura, dalle sette alle venti\./);
-    assert.match(SYSTEM_PROMPT, /I suoi dati servono solo per ricontattarla e vengono cancellati dopo la richiamata\./);
+    assert.match(SYSTEM_PROMPT, /I suoi dati servono solo per ricontattarla\./);
     assert.match(SYSTEM_PROMPT, /Non promettere mai un orario preciso di richiamata/);
     assert.match(SYSTEM_PROMPT, /Fuori dalla richiamata descritta più sotto, non chiedere né annotare nomi/);
     assert.doesNotMatch(SYSTEM_PROMPT, /Non chiedere né annotare nomi, date, numeri di telefono/);

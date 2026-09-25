@@ -43,7 +43,7 @@ function componiEmail({ richiamata, numeroChiamante, messages, ricevutaIl, timez
     '',
     '---',
     'Al cliente è stato detto che verrà ricontattato in orario di apertura (7-20), senza un orario preciso,',
-    'e che i suoi dati servono solo per ricontattarlo e vengono cancellati dopo la richiamata.',
+    'e che i suoi dati servono solo per ricontattarlo.',
     'Dopo la richiamata cancellate questa email.'
   );
 
@@ -98,7 +98,7 @@ function creaNotificatoreRichiamata({ host, port, user, pass, to, from, transpor
     }
   }
 
-  return { invia, configurato };
+  return { invia, configurato, destinatario };
 }
 
 module.exports = { creaNotificatoreRichiamata, componiEmail, DESTINATARIO_PREDEFINITO };

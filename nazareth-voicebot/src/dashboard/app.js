@@ -327,12 +327,138 @@
       ['Voce', c.voce],
       ['Tempo massimo di risposta', secondi(c.timeoutClaudeMs)],
       ['Domande massime per chiamata', c.maxTurni],
+      ['Archivio conversazioni', c.archivioGiorni ? `attivo, ${c.archivioGiorni} giorni` : 'non collegato'],
       ['Versione', c.versione || '—'],
     ];
     sostituisci('impostazioni', righe.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: String(v) })]));
 
-    testo('piede', `${marchio.app} · ${marchio.cliente} — aggiornato alle ${fmtOraSec.format(new Date(m.generatoIl))}, dati del servizio dal ${fmtData.format(new Date(m.datiDal))}. Nessuna conversazione viene registrata.`);
+    testo('piede', `${marchio.app} · ${marchio.cliente} — aggiornato alle ${fmtOraSec.format(new Date(m.generatoIl))}, dati del servizio dal ${fmtData.format(new Date(m.datiDal))}. ${c.archivioGiorni ? `Le conversazioni restano in archivio ${c.archivioGiorni} giorni.` : 'Nessuna conversazione viene conservata.'}`);
   }
+
+  // ---- Archivio conversazioni ----
+  const fmtDataLunga = new Intl.DateTimeFormat('it-IT', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  const ESITI_EMAIL = { inviata: 'Inviata alla reception', non_inviata: 'NON inviata' };
+  const archivio = { cerca: '', prossima: null, caricate: 0, attesa: null };
+
+  function durata(sec) {
+    if (sec == null) return null;
+    return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  }
+
+  function voceArchivio(c) {
+    const inizio = new Date(c.inizio);
+    const oggi = giornoRoma(inizio) === giornoRoma(new Date());
+    const dettagli = [];
+    if (c.domande) dettagli.push(plurale(c.domande, 'domanda', 'domande'));
+    if (durata(c.durataSec)) dettagli.push(durata(c.durataSec));
+    if (c.preventivo) dettagli.push(`preventivo da ${fmtEuro.format(c.preventivo)}`);
+    if (c.conEmail) dettagli.push('email di richiamata');
+    const bottone = el('button', { class: 'voce', type: 'button' }, [
+      el('div', { class: 'quando' }, [fmtOra.format(inizio), el('small', { text: oggi ? 'oggi' : fmtGiorno.format(inizio) })]),
+      el('div', {}, [
+        el('div', { class: 'numero', text: c.numero || 'Numero nascosto' }),
+        el('div', { class: 'anteprima', text: c.primaDomanda ? `«${c.primaDomanda}»` : 'Nessuna domanda' }),
+        dettagli.length ? el('div', { class: 'dettagli', text: dettagli.join(' · ') }) : null,
+      ]),
+      el('div', { class: 'colonna-destra' }, [
+        c.esito ? badge(ESITI[c.esito]) : c.statoLinea ? badge({ etichetta: 'Solo registro telefonico', classe: 'neutral', icona: '–' }) : badge(ESITI.in_corso),
+        c.richiamata ? badge(RICHIAMATE[c.richiamata]) : null,
+      ]),
+    ]);
+    bottone.addEventListener('click', () => apriDettaglio(c.id));
+    return el('li', {}, bottone);
+  }
+
+  async function caricaArchivio({ altre = false } = {}) {
+    const parametri = new URLSearchParams();
+    if (archivio.cerca) parametri.set('cerca', archivio.cerca);
+    if (altre && archivio.prossima) parametri.set('prima', archivio.prossima);
+    const risposta = await fetch(`/dashboard/api/archivio?${parametri}`, { cache: 'no-store', credentials: 'same-origin' });
+    if (risposta.status === 401) return window.location.reload();
+    const dati = await risposta.json();
+    const sezione = document.getElementById('archivio-sezione');
+    if (!dati.attivo) { sezione.hidden = true; return; }
+    sezione.hidden = false;
+    const lista = document.getElementById('archivio');
+    if (dati.errore) {
+      lista.replaceChildren(el('li', { class: 'avviso', text: 'Archivio non raggiungibile al momento. Nuovo tentativo tra 30 secondi.' }));
+      return;
+    }
+    const voci = dati.chiamate.map(voceArchivio);
+    if (altre) lista.append(...voci);
+    else lista.replaceChildren(...(voci.length ? voci : [el('li', { class: 'vuoto', text: archivio.cerca ? 'Nessuna chiamata trovata.' : 'Nessuna chiamata archiviata finora.' })]));
+    archivio.caricate = altre ? archivio.caricate + voci.length : voci.length;
+    archivio.prossima = dati.prossima;
+    document.getElementById('archivio-altre').hidden = !dati.altre;
+    testo('archivio-sotto', `${plurale(dati.totale, 'chiamata', 'chiamate')} · conservate ${dati.giorni} giorni, poi cancellate in automatico`);
+  }
+
+  function battuta(m) {
+    return el('li', { class: m.ruolo === 'cliente' ? 'cliente' : 'assistente' }, [
+      el('small', { text: `${m.ruolo === 'cliente' ? 'Cliente' : 'Vocalba'} · ${fmtOraSec.format(new Date(m.ts))}` }),
+      m.testo,
+    ]);
+  }
+
+  async function apriDettaglio(id) {
+    const dialogo = document.getElementById('dettaglio');
+    const corpo = document.getElementById('dettaglio-corpo');
+    testo('dettaglio-titolo', 'Caricamento…');
+    testo('dettaglio-sotto', '');
+    corpo.replaceChildren();
+    if (!dialogo.open) dialogo.showModal();
+    try {
+      const risposta = await fetch(`/dashboard/api/archivio/${encodeURIComponent(id)}`, { cache: 'no-store', credentials: 'same-origin' });
+      if (risposta.status === 401) return window.location.reload();
+      if (!risposta.ok) throw new Error(`HTTP ${risposta.status}`);
+      const c = await risposta.json();
+      testo('dettaglio-titolo', c.numero || 'Numero nascosto');
+      const sotto = [fmtDataLunga.format(new Date(c.inizio))];
+      if (durata(c.durataSec)) sotto.push(`durata ${durata(c.durataSec)}`);
+      if (c.costo != null) sotto.push(`costo ${c.costo.toLocaleString('it-IT', { maximumFractionDigits: 4 })} ${c.valuta || ''}`.trim());
+      testo('dettaglio-sotto', sotto.join(' · '));
+
+      const fatti = [
+        c.ingresso ? el('span', { class: 'chip', text: INGRESSI[c.ingresso] || c.ingresso }) : null,
+        c.esito ? badge(ESITI[c.esito]) : null,
+        c.richiamata ? badge(RICHIAMATE[c.richiamata]) : null,
+        c.preventivo ? el('span', { class: 'chip euro', text: `Preventivo da ${fmtEuro.format(c.preventivo)}` }) : null,
+        ...(c.argomenti || []).map((a) => el('span', { class: 'chip', text: a })),
+      ].filter(Boolean);
+      const contenuto = [fatti.length ? el('div', { class: 'fatti' }, fatti) : null];
+
+      contenuto.push(el('h4', { text: 'Conversazione' }));
+      contenuto.push(c.messaggi.length
+        ? el('ul', { class: 'conversazione' }, c.messaggi.map(battuta))
+        : el('div', { class: 'vuoto', text: c.statoLinea ? 'Chiamata presente solo nel registro telefonico: nessuna conversazione con l\'assistente.' : 'Nessuna conversazione registrata.' }));
+
+      for (const e of c.email) {
+        contenuto.push(el('h4', { text: 'Email di richiamata' }));
+        contenuto.push(el('div', { class: 'email-copia' }, [
+          el('header', {}, [
+            el('b', { text: e.oggetto }),
+            el('span', { class: 'sotto', text: `A: ${e.destinatario || '—'} · ${fmtData.format(new Date(e.ts))} · ${ESITI_EMAIL[e.esito] || e.esito}` }),
+          ]),
+          el('pre', { text: e.testo }),
+        ]));
+      }
+      corpo.replaceChildren(...contenuto.filter(Boolean));
+    } catch (error) {
+      testo('dettaglio-titolo', 'Chiamata non disponibile');
+      corpo.replaceChildren(el('div', { class: 'avviso', text: `Non riesco a leggere l'archivio (${error.message}).` }));
+    }
+  }
+
+  document.getElementById('dettaglio-chiudi').addEventListener('click', () => document.getElementById('dettaglio').close());
+  document.getElementById('dettaglio').addEventListener('click', (e) => { if (e.target.id === 'dettaglio') e.target.close(); });
+  document.getElementById('archivio-altre').addEventListener('click', () => caricaArchivio({ altre: true }).catch(() => {}));
+  document.getElementById('archivio-cerca').addEventListener('input', (e) => {
+    clearTimeout(archivio.attesa);
+    archivio.attesa = setTimeout(() => {
+      archivio.cerca = e.target.value.trim();
+      caricaArchivio().catch(() => {});
+    }, 300);
+  });
 
   async function aggiorna() {
     try {
@@ -340,6 +466,8 @@
       if (risposta.status === 401) return window.location.reload();
       if (!risposta.ok) throw new Error(`HTTP ${risposta.status}`);
       disegna(await risposta.json());
+      // L'archivio si ricarica da solo solo sulla prima pagina e senza ricerca in corso.
+      if (!archivio.cerca && archivio.caricate <= 25) await caricaArchivio().catch(() => {});
     } catch (error) {
       const generale = document.getElementById('stato-generale');
       generale.replaceChildren(el('span', { class: 'punto problema', 'aria-hidden': 'true' }), 'Non raggiungibile');

@@ -54,8 +54,9 @@ function leggiCookie(req, nome) {
  * @param {{ riepilogo(): object }} opzioni.metriche
  * @param {{ ultimeChiamate(): Promise<object> }} opzioni.registroTwilio
  * @param {() => object} opzioni.configurazione impostazioni correnti da mostrare
+ * @param {ReturnType<import('../archivio/archivio').creaArchivio>} [opzioni.archivio] conversazioni archiviate
  */
-function creaDashboard({ password, metriche, registroTwilio, configurazione, now = () => Date.now() }) {
+function creaDashboard({ password, metriche, registroTwilio, configurazione, archivio = { attivo: false }, now = () => Date.now() }) {
   const router = express.Router();
   const falliti = new Map(); // ip → { conteggio, dal }
 
@@ -159,6 +160,34 @@ function creaDashboard({ password, metriche, registroTwilio, configurazione, now
       metriche: metriche.riepilogo(),
       twilio: await registroTwilio.ultimeChiamate(),
     });
+  });
+
+  // Archivio delle conversazioni: elenco a pagine con ricerca e dettaglio di una chiamata.
+  router.get('/dashboard/api/archivio', async (req, res) => {
+    if (!sessioneValida(req)) return res.status(401).json({ errore: 'sessione_scaduta' });
+    if (!archivio.attivo) return res.json({ attivo: false });
+    const cerca = typeof req.query.cerca === 'string' ? req.query.cerca.trim() : '';
+    const prima = typeof req.query.prima === 'string' && !Number.isNaN(Date.parse(req.query.prima)) ? req.query.prima : undefined;
+    try {
+      res.json({ attivo: true, ...(await archivio.elenco({ cerca: cerca || undefined, prima })) });
+    } catch (error) {
+      console.log(JSON.stringify({ ts: new Date().toISOString(), evento: 'archivio_errore', operazione: 'elenco', codice: error.code ?? error.name }));
+      res.status(503).json({ attivo: true, errore: 'archivio_non_disponibile' });
+    }
+  });
+
+  router.get('/dashboard/api/archivio/:id', async (req, res) => {
+    if (!sessioneValida(req)) return res.status(401).json({ errore: 'sessione_scaduta' });
+    if (!archivio.attivo) return res.status(404).json({ errore: 'archivio_spento' });
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(req.params.id)) return res.status(400).json({ errore: 'id_non_valido' });
+    try {
+      const chiamata = await archivio.dettaglio(req.params.id);
+      if (!chiamata) return res.status(404).json({ errore: 'non_trovata' });
+      res.json(chiamata);
+    } catch (error) {
+      console.log(JSON.stringify({ ts: new Date().toISOString(), evento: 'archivio_errore', operazione: 'dettaglio', codice: error.code ?? error.name }));
+      res.status(503).json({ errore: 'archivio_non_disponibile' });
+    }
   });
 
   return router;

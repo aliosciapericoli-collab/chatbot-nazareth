@@ -6,6 +6,7 @@ const { classificaDomanda } = require('./argomenti');
 const { isReceptionChiusa: orarioReception } = require('./orario');
 const {
   INTRO,
+  creaIntro,
   RICHIESTA_DOPO_SILENZIO,
   MESSAGGIO_RIPIEGO,
   MESSAGGIO_LIMITE_TURNI,
@@ -52,6 +53,8 @@ function logPredefinito(chiamataId, evento, dettagli = {}) {
  * @param {boolean} [opzioni.richiamataDisponibile] se false il bot non offre la richiamata
  * @param {number} [opzioni.limiteVerificaMs] tempo massimo per completare una verifica con strumenti
  * @param {string[]} [opzioni.numeriEsclusi] numeri della struttura da non proporre come recapito
+ * @param {(chiamataId: string, ruolo: 'cliente'|'assistente', testo: string, extra?: { numero?: string }) => void} [opzioni.trascrivi]
+ *   riceve ogni battuta della conversazione, per l'archivio; non deve mai lanciare né bloccare
  */
 function creaCentralino({
   assistente,
@@ -73,7 +76,11 @@ function creaCentralino({
   // dal momento in cui è partita. Deve restare sotto il limite del provider (15 s Twilio).
   limiteVerificaMs = 13000,
   log = logPredefinito,
+  trascrivi = () => {},
+  // Giorni di conservazione delle conversazioni (0 = non conservate): cambia l'avviso iniziale.
+  giorniConservazione = 0,
 }) {
+  const intro = giorniConservazione ? creaIntro(giorniConservazione) : INTRO;
   // Verifiche in corso: la risposta arriva con l'evento "prosegui".
   const verificheInCorso = new Map(); // chiamataId → { promessa, messages, numeroAffidabile, inizio }
   const parla = (testo) => azioni.parla(testo, lingua);
@@ -86,7 +93,7 @@ function creaCentralino({
   }
 
   function accogli(motivo) {
-    return [parla(INTRO[motivo]), ascolta(motivo, 1)];
+    return [parla(intro[motivo]), ascolta(motivo, 1)];
   }
 
   function chiamataInArrivo({ chiamataId }) {
@@ -114,7 +121,7 @@ function creaCentralino({
   }
 
   function silenzio({ chiamataId, contesto = {} }) {
-    const motivo = contesto.motivo in INTRO ? contesto.motivo : 'chiusa';
+    const motivo = contesto.motivo in intro ? contesto.motivo : 'chiusa';
     const tentativo = Number.parseInt(contesto.tentativo, 10) || 1;
     log(chiamataId, 'silenzio', { motivo, tentativo });
 
@@ -250,6 +257,25 @@ function creaCentralino({
     }
   }
 
+  // Per l'archivio: le parole del cliente come le ha trascritte il provider, poi quello
+  // che il bot gli ha detto. Un errore qui non deve mai toccare la chiamata.
+  function registraBattute(evento, risposta) {
+    const chiamataId = evento?.chiamataId;
+    if (!chiamataId) return;
+    try {
+      const detto = evento.tipo === 'parlato' ? (evento.testo || '').trim() : '';
+      if (detto) {
+        const numero = numeroProponibile(evento.numeroChiamante, []) ? normalizzaNumero(evento.numeroChiamante) : null;
+        trascrivi(chiamataId, 'cliente', detto, { numero });
+      }
+      for (const azione of risposta || []) {
+        if (azione.tipo === 'parla' && azione.testo) trascrivi(chiamataId, 'assistente', azione.testo);
+      }
+    } catch (error) {
+      log(chiamataId, 'archivio_errore', { operazione: 'trascrizione', codice: error.name });
+    }
+  }
+
   const gestori = {
     chiamata_in_arrivo: chiamataInArrivo,
     esito_inoltro: esitoInoltro,
@@ -267,13 +293,16 @@ function creaCentralino({
      */
     async gestisci(evento) {
       const gestore = gestori[evento?.tipo];
+      let risposta;
       try {
         if (!gestore) throw new Error(`Evento sconosciuto: ${evento?.tipo}`);
-        return await gestore(evento);
+        risposta = await gestore(evento);
       } catch (error) {
         log(evento?.chiamataId, 'errore_centralino', { tipo: error.name, messaggio: String(error.message).slice(0, 300) });
-        return chiudi(evento?.chiamataId, MESSAGGIO_RIPIEGO, 'ripiego');
+        risposta = chiudi(evento?.chiamataId, MESSAGGIO_RIPIEGO, 'ripiego');
       }
+      registraBattute(evento, risposta);
+      return risposta;
     },
   };
 }

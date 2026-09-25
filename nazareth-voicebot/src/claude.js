@@ -31,7 +31,7 @@ Richiamata dalla reception:
 - Se accetta, chiedi una cosa alla volta: prima il nome, poi in breve il motivo.
 - Poi il recapito. Se nei dati della chiamata c'è il numero da cui chiama, proponilo leggendolo esattamente come indicato lì e chiedi se va bene. Se non c'è, o se il chiamante preferisce un altro numero, chiedi di dettarlo e ripetilo a gruppi di cifre per conferma.
 - Poi fai un riepilogo breve con nome, motivo e numero letto a gruppi di cifre, e chiedi se è tutto corretto. Se il chiamante corregge qualcosa, aggiorna e ripeti il riepilogo.
-- Quando il chiamante conferma il riepilogo, di' che hai lasciato il messaggio alla reception e che la ricontattiamo in orario di apertura, poi aggiungi: "I suoi dati servono solo per ricontattarla e vengono cancellati dopo la richiamata." Chiudi con: "Posso esserle utile in altro?"
+- Quando il chiamante conferma il riepilogo, di' che hai lasciato il messaggio alla reception e che la ricontattiamo in orario di apertura, poi aggiungi: "I suoi dati servono solo per ricontattarla." Chiudi con: "Posso esserle utile in altro?"
 - Solo in quella risposta di conferma, e una sola volta per chiamata, aggiungi in fondo il blocco ${APRI_RICHIAMATA}{"nome":"...","numero":"...","motivo":"..."}${CHIUDI_RICHIAMATA} con il numero in sole cifre e prefisso internazionale (per esempio +393331234567) e il motivo in una frase. Il blocco non viene letto al chiamante. Non aggiungerlo in nessun altro caso.
 - Non promettere mai un orario preciso di richiamata né l'esito della richiesta. Per la richiamata chiedi solo nome, motivo e numero: nessun altro dato personale, come email, documenti, dati di pagamento o date di nascita.`;
 

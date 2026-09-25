@@ -12,7 +12,8 @@ const { creaProvider } = require('./src/provider');
 const { creaMetriche } = require('./src/dashboard/metriche');
 const { creaRegistroTwilio } = require('./src/dashboard/registro-twilio');
 const { creaDashboard } = require('./src/dashboard');
-const { creaNotificatoreRichiamata } = require('./src/notifiche/email-richiamata');
+const { creaNotificatoreRichiamata, componiEmail } = require('./src/notifiche/email-richiamata');
+const { creaArchivio } = require('./src/archivio/archivio');
 const { creaClientWuBook } = require('./src/disponibilita/wubook');
 const { creaStrumentoDisponibilita } = require('./src/disponibilita/strumento');
 
@@ -44,11 +45,18 @@ function createApp({
   dashboardPassword = process.env.DASHBOARD_PASSWORD,
   // Trasporto email sostituibile nei test; di default SMTP dalle variabili d'ambiente.
   trasportoEmail,
+  // Archivio delle conversazioni su Postgres (DATABASE_URL); senza URL resta spento.
+  archivio = creaArchivio({
+    databaseUrl: process.env.DATABASE_URL,
+    giorni: Number.parseInt(process.env.ARCHIVIO_GIORNI, 10) || undefined,
+    log: logPredefinito,
+  }),
 } = {}) {
-  // Ogni evento va nei log e nelle metriche della dashboard.
+  // Ogni evento va nei log, nelle metriche della dashboard e nell'archivio.
   const log = (chiamataId, evento, dettagli) => {
     logPredefinito(chiamataId, evento, dettagli);
     metriche.registra(chiamataId, evento, dettagli);
+    archivio.evento(chiamataId, evento, dettagli);
   };
 
   // Prezzi e disponibilità in tempo reale (WUBOOK_ENABLED=false per disattivarli).
@@ -68,6 +76,21 @@ function createApp({
     log,
   });
 
+  // L'email parte come prima; in archivio ne resta una copia identica, anche se non è partita.
+  const notificaRichiamata = async (dati) => {
+    const inviata = await notificatore.invia(dati);
+    if (archivio.attivo) {
+      const { subject, text } = componiEmail(dati);
+      archivio.email(dati.chiamataId, {
+        destinatario: notificatore.destinatario,
+        oggetto: subject,
+        testo: text,
+        esito: inviata ? 'inviata' : 'non_inviata',
+      });
+    }
+    return inviata;
+  };
+
   const inoltroReception = process.env.RECEPTION_FORWARD !== 'false';
   const maxTurni = Number.parseInt(process.env.CONVERSATION_MAX_TURNS, 10) || 10;
 
@@ -83,11 +106,13 @@ function createApp({
     inoltroReception,
     // Domande massime per chiamata, per limitare durata e costi.
     maxTurni,
-    notificaRichiamata: notificatore.invia,
+    notificaRichiamata,
     richiamataDisponibile: notificatore.configurato,
     // Numeri della struttura: se il trasferimento li presenta come chiamante, non vanno proposti.
     numeriEsclusi: [process.env.RECEPTION_PHONE_NUMBER || '+3907611564612', process.env.TWILIO_PHONE_NUMBER].filter(Boolean),
     log,
+    trascrivi: archivio.trascrivi,
+    giorniConservazione: archivio.attivo ? archivio.giorni : 0,
   });
 
   const app = express();
@@ -104,6 +129,7 @@ function createApp({
     password: dashboardPassword,
     metriche,
     registroTwilio,
+    archivio,
     configurazione: () => ({
       provider: provider.nome,
       modello: assistente.model ?? null,
@@ -116,6 +142,7 @@ function createApp({
       disponibilitaWuBook: disponibilitaAttiva,
       emailRichiamata: notificatore.configurato ? process.env.CALLBACK_EMAIL_TO || 'info@nazarethresidence.com' : null,
       versione: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
+      archivioGiorni: archivio.attivo ? archivio.giorni : null,
     }),
   }));
 
@@ -142,7 +169,23 @@ if (require.main === module) {
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('ANTHROPIC_API_KEY non impostata: l\'assistente risponderà solo con il messaggio di ripiego.');
   }
-  createApp({ provider }).listen(PORT, () => {
+  const registroTwilio = creaRegistroTwilio({
+    accountSid: process.env.TWILIO_ACCOUNT_SID,
+    authToken: process.env.TWILIO_AUTH_TOKEN,
+  });
+  const archivio = creaArchivio({
+    databaseUrl: process.env.DATABASE_URL,
+    giorni: Number.parseInt(process.env.ARCHIVIO_GIORNI, 10) || undefined,
+    log: logPredefinito,
+  });
+  if (archivio.attivo) {
+    console.log(`Archivio conversazioni attivo: conservazione ${archivio.giorni} giorni.`);
+    // Ogni 10 minuti: chiamate ricevute dal registro Twilio e pulizia di quelle scadute.
+    archivio.avvia({ leggiRegistro: registroTwilio.disponibile ? () => registroTwilio.chiamateRecenti() : undefined });
+  } else {
+    console.warn('DATABASE_URL non impostato: le conversazioni non vengono archiviate.');
+  }
+  createApp({ provider, registroTwilio, archivio }).listen(PORT, () => {
     console.log(`nazareth-voicebot in ascolto sulla porta ${PORT} (provider: ${provider.nome})`);
   });
 }

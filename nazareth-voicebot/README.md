@@ -69,8 +69,34 @@ Nome del prodotto e del cliente si impostano con `APP_NAME` e `CLIENT_NAME`, sen
 - **Salute del servizio:** stato di assistente vocale, prezzi WuBook ed email di richiamata.
 - **Errori recenti, registro telefonico e impostazioni** in sezioni richiudibili.
 
-Privacy: nessuna trascrizione né registrazione; id delle chiamate troncati, dei numeri solo le
-ultime tre cifre. Le metriche del servizio sono in memoria e ripartono a ogni riavvio.
+Nel riepilogo (`/dashboard/api/stato`) non ci sono testi: id delle chiamate troncati, dei numeri
+solo le ultime tre cifre. Le metriche del servizio sono in memoria e ripartono a ogni riavvio.
+
+### Archivio conversazioni (Postgres)
+
+Con `DATABASE_URL` impostato ogni chiamata resta consultabile nella dashboard, sezione
+**Archivio conversazioni**:
+
+- **conversazione completa**: le parole del cliente come le ha trascritte Twilio e ogni frase
+  detta da Vocalba, nell'ordine, con l'ora;
+- **copia identica dell'email di richiamata** (oggetto, destinatario, testo), anche quando
+  l'invio non è riuscito;
+- esito, argomenti, preventivo, stato della richiamata e numero del chiamante;
+- **sincronizzazione con Twilio** ogni 10 minuti: entrano anche le chiamate chiuse prima di
+  parlare, con durata, stato della linea e costo;
+- ricerca per parola o numero ed elenco a pagine.
+
+Dopo `ARCHIVIO_GIORNI` giorni (default 90) le chiamate si cancellano da sole, con messaggi ed
+email. Con l'archivio attivo il messaggio di benvenuto dice al chiamante che la conversazione
+viene conservata e per quanto tempo. Le scritture non bloccano mai la chiamata: se il database
+non risponde il bot continua e nei log resta solo un codice tecnico.
+
+Su Render: crea un database Postgres nella **stessa regione** del servizio e copia l'**Internal
+Database URL** in `DATABASE_URL` del web service. Le tabelle (`vocalba_chiamate`,
+`vocalba_messaggi`, `vocalba_email`) si creano da sole al primo avvio. Prima di attivarlo
+aggiorna l'informativa privacy della struttura (dati conservati, durata, fornitori).
+
+Test sul database: `TEST_DATABASE_URL=postgres://… npm test` (il database di prova viene svuotato).
 
 ### Simulatore di chiamata
 
@@ -113,9 +139,10 @@ il server quando il chiamante riaggancia. Una sola email per chiamata.
 
 Finché `SMTP_HOST` non è impostato il bot **non offre** la richiamata, per non promettere
 messaggi che nessuno riceverebbe. Se l'invio fallisce, il chiamante non se ne accorge:
-resta un log con il solo CallSid e un codice tecnico, e la dashboard mostra "Email NON inviata". Nulla viene
-salvato su disco. Il testo della conversazione passa solo dalla memoria del server all'email;
-dopo la richiamata l'email va cancellata dalla casella della reception.
+resta un log con il solo CallSid e un codice tecnico, e la dashboard mostra "Email NON inviata".
+Senza archivio il testo della conversazione passa solo dalla memoria del server all'email; con
+l'archivio attivo ne resta una copia identica per `ARCHIVIO_GIORNI` giorni. Dopo la richiamata
+l'email va cancellata dalla casella della reception.
 
 ### Prezzi e disponibilità in tempo reale (WuBook)
 
@@ -166,7 +193,7 @@ quattro camere non dà prezzi.
   timeout di `CLAUDE_TIMEOUT_MS` (default 8000) e nessun retry. In caso di timeout o errore il
   chiamante sente un messaggio con WhatsApp ed email e la chiamata si chiude con cortesia.
 - **Log:** una riga JSON per evento con solo `CallSid`, esito e durata; il parlato e il numero
-  del chiamante non vengono registrati.
+  del chiamante non finiscono mai nei log (con l'archivio attivo stanno solo nel database).
 
 | Metodo | Percorso         | Descrizione                                         |
 |--------|------------------|-----------------------------------------------------|
@@ -230,6 +257,8 @@ nazareth-voicebot/
 │   │   ├── registro-twilio.js # storico chiamate e costi da Twilio
 │   │   ├── pagina.html        # pagina della dashboard
 │   │   └── app.js             # script della pagina
+│   ├── archivio/
+│   │   └── archivio.js        # conversazioni, email e registro Twilio su Postgres
 │   ├── centralino/
 │   │   ├── centralino.js      # logica della chiamata (indipendente dal provider)
 │   │   ├── protocollo.js      # eventi e azioni neutre
@@ -251,6 +280,7 @@ nazareth-voicebot/
 ├── test/
 │   ├── centralino.test.js     # centralino e adattatore, senza HTTP
 │   ├── dashboard.test.js      # accesso, metriche e registro Twilio della dashboard
+│   ├── archivio.test.js       # archivio conversazioni (Postgres con TEST_DATABASE_URL)
 │   ├── richiamata.test.js     # richiamata con Claude e SMTP simulati
 │   ├── disponibilita.test.js  # prezzi e disponibilità con WuBook e Claude simulati
 │   └── handle-speech.test.js  # flusso HTTP Twilio con Claude simulato
@@ -311,6 +341,9 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `CLIENT_NAME`               | Nome del cliente (default `Nazareth Residence`)                |
 | `SESSION_SECRET`            | Facoltativo: segreto aggiuntivo per le sessioni della dashboard |
 | `DASHBOARD_PASSWORD`        | Password della dashboard `/dashboard` (vuota = disattivata)     |
+| `DATABASE_URL`              | Postgres dell'archivio conversazioni (vuoto = non conservate)   |
+| `ARCHIVIO_GIORNI`           | Giorni di conservazione dell'archivio (default 90)              |
+| `DATABASE_SSL`              | `true`/`false` forza il TLS verso Postgres (default automatico) |
 | `TELEPHONY_PROVIDER`        | Adattatore del provider telefonico (default `twilio`)          |
 | `RECEPTION_MODE`            | `auto` (default), `chiusa` o `aperta`: solo per le prove       |
 | `TIMEZONE`                  | Fuso orario (default `Europe/Rome`)                            |
