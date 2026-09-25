@@ -95,8 +95,9 @@ function creaProviderTwilio({ voce, validaFirma = true, publicBaseUrl, authToken
     }
     const verificaTwilio = authToken ? twilio.webhook(authToken, webhookOptions) : twilio.webhook(webhookOptions);
 
+    // Il numero chiamato serve a distinguere più linee sullo stesso server (per esempio la demo).
     const gestisci = (creaEvento) => async (req, res) => {
-      const azioni = await centralino.gestisci(creaEvento(req));
+      const azioni = await centralino.gestisci({ ...creaEvento(req), numeroChiamato: req.body.To || null });
       res.type('text/xml').send(renderizza(azioni));
     };
 

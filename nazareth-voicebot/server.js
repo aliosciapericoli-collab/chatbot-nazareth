@@ -14,6 +14,7 @@ const { creaRegistroTwilio } = require('./src/dashboard/registro-twilio');
 const { creaDashboard } = require('./src/dashboard');
 const { creaNotificatoreRichiamata, componiEmail } = require('./src/notifiche/email-richiamata');
 const { creaArchivio } = require('./src/archivio/archivio');
+const { creaAssistenteDemo, MESSAGGI_DEMO, stessoNumero } = require('./src/demo/linea-demo');
 const { creaClientWuBook } = require('./src/disponibilita/wubook');
 const { creaStrumentoDisponibilita } = require('./src/disponibilita/strumento');
 
@@ -46,6 +47,8 @@ function createApp({
   // Trasporto email sostituibile nei test; di default SMTP dalle variabili d'ambiente.
   trasportoEmail,
   // Archivio delle conversazioni su Postgres (DATABASE_URL); senza URL resta spento.
+  // Assistente della linea demo sostituibile nei test.
+  assistenteDemo,
   archivio = creaArchivio({
     databaseUrl: process.env.DATABASE_URL,
     giorni: Number.parseInt(process.env.ARCHIVIO_GIORNI, 10) || undefined,
@@ -115,6 +118,28 @@ function createApp({
     giorniConservazione: archivio.attivo ? archivio.giorni : 0,
   });
 
+  // Linea demo (DEMO_PHONE_NUMBER): stesso server, ma struttura dimostrativa. Le sue chiamate
+  // non entrano nelle metriche né nell'archivio del cliente e non mandano email alla reception.
+  const numeroDemo = process.env.DEMO_PHONE_NUMBER || null;
+  const centralinoDemo = numeroDemo ? creaCentralino({
+    assistente: assistenteDemo ?? creaAssistenteDemo(),
+    conversazioni: creaConversationStore(),
+    limiteRispostaMs,
+    numeroReception: null,
+    inoltroReception: false,
+    isReceptionChiusa: () => true,
+    maxTurni: Number.parseInt(process.env.DEMO_MAX_TURNS, 10) || 8,
+    richiamataDisponibile: false,
+    messaggi: MESSAGGI_DEMO,
+    log: (chiamataId, evento, dettagli) => logPredefinito(chiamataId, evento, { ...dettagli, linea: 'demo' }),
+  }) : null;
+  const instradamento = {
+    gestisci(evento) {
+      if (centralinoDemo && stessoNumero(evento?.numeroChiamato, numeroDemo)) return centralinoDemo.gestisci(evento);
+      return centralino.gestisci(evento);
+    },
+  };
+
   const app = express();
 
   // Dietro un proxy (Render, Railway, ecc.) serve per ricostruire l'URL https usato
@@ -143,10 +168,11 @@ function createApp({
       emailRichiamata: notificatore.configurato ? process.env.CALLBACK_EMAIL_TO || 'info@nazarethresidence.com' : null,
       versione: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
       archivioGiorni: archivio.attivo ? archivio.giorni : null,
+      lineaDemo: numeroDemo,
     }),
   }));
 
-  app.use(provider.router(centralino));
+  app.use(provider.router(instradamento));
 
   return app;
 }

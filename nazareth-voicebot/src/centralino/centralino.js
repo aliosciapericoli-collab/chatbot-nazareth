@@ -79,8 +79,19 @@ function creaCentralino({
   trascrivi = () => {},
   // Giorni di conservazione delle conversazioni (0 = non conservate): cambia l'avviso iniziale.
   giorniConservazione = 0,
+  // Testi fissi sostituibili (INTRO, MESSAGGIO_RIPIEGO, ...), per esempio per la linea demo.
+  messaggi = {},
 }) {
-  const intro = giorniConservazione ? creaIntro(giorniConservazione) : INTRO;
+  const testi = {
+    RICHIESTA_DOPO_SILENZIO,
+    MESSAGGIO_RIPIEGO,
+    MESSAGGIO_LIMITE_TURNI,
+    MESSAGGIO_NESSUNA_RISPOSTA,
+    MESSAGGIO_ATTESA_VERIFICA,
+    MESSAGGIO_RIPETA,
+    ...messaggi,
+  };
+  const intro = messaggi.INTRO ?? (giorniConservazione ? creaIntro(giorniConservazione) : INTRO);
   // Verifiche in corso: la risposta arriva con l'evento "prosegui".
   const verificheInCorso = new Map(); // chiamataId → { promessa, messages, numeroAffidabile, inizio }
   const parla = (testo) => azioni.parla(testo, lingua);
@@ -125,8 +136,8 @@ function creaCentralino({
     const tentativo = Number.parseInt(contesto.tentativo, 10) || 1;
     log(chiamataId, 'silenzio', { motivo, tentativo });
 
-    if (tentativo >= maxTentativi) return chiudi(chiamataId, MESSAGGIO_NESSUNA_RISPOSTA, 'silenzio');
-    return [parla(RICHIESTA_DOPO_SILENZIO[motivo]), ascolta(motivo, tentativo + 1)];
+    if (tentativo >= maxTentativi) return chiudi(chiamataId, testi.MESSAGGIO_NESSUNA_RISPOSTA, 'silenzio');
+    return [parla(testi.RICHIESTA_DOPO_SILENZIO[motivo]), ascolta(motivo, tentativo + 1)];
   }
 
   // Registra la richiamata confermata e invia l'email dopo la risposta al provider.
@@ -161,7 +172,7 @@ function creaCentralino({
 
     if (conversazioni.turniUtente(chiamataId) >= maxTurni) {
       log(chiamataId, 'limite_turni', { turni: maxTurni });
-      return chiudi(chiamataId, MESSAGGIO_LIMITE_TURNI, 'limite_turni');
+      return chiudi(chiamataId, testi.MESSAGGIO_LIMITE_TURNI, 'limite_turni');
     }
 
     // Per le statistiche si registra solo l'argomento, non il testo.
@@ -187,7 +198,7 @@ function creaCentralino({
       if (risposta.inVerifica) {
         // Claude usa uno strumento: si risponde subito al provider e si completa dopo.
         avviaVerifica(chiamataId, risposta.completa, messages, numeroAffidabile);
-        return [parla(MESSAGGIO_ATTESA_VERIFICA), azioni.prosegui({ motivo: 'verifica' })];
+        return [parla(testi.MESSAGGIO_ATTESA_VERIFICA), azioni.prosegui({ motivo: 'verifica' })];
       }
 
       log(chiamataId, 'risposta_claude', { ms: Date.now() - inizio, turno: messages.length, fine: risposta.fine });
@@ -205,7 +216,7 @@ function creaCentralino({
       status: error.status,
       messaggio: String(error.message).slice(0, 300),
     });
-    return chiudi(chiamataId, MESSAGGIO_RIPIEGO, 'ripiego');
+    return chiudi(chiamataId, testi.MESSAGGIO_RIPIEGO, 'ripiego');
   }
 
   // Risposta finale di Claude: richiamata, congedo oppure nuovo ascolto.
@@ -240,7 +251,7 @@ function creaCentralino({
     if (!verifica) {
       // Per esempio dopo un riavvio del server: si chiede di ripetere.
       log(chiamataId, 'verifica_non_trovata');
-      return [parla(MESSAGGIO_RIPETA), ascolta('continua', 1)];
+      return [parla(testi.MESSAGGIO_RIPETA), ascolta('continua', 1)];
     }
     verificheInCorso.delete(chiamataId);
     try {
@@ -299,7 +310,7 @@ function creaCentralino({
         risposta = await gestore(evento);
       } catch (error) {
         log(evento?.chiamataId, 'errore_centralino', { tipo: error.name, messaggio: String(error.message).slice(0, 300) });
-        risposta = chiudi(evento?.chiamataId, MESSAGGIO_RIPIEGO, 'ripiego');
+        risposta = chiudi(evento?.chiamataId, testi.MESSAGGIO_RIPIEGO, 'ripiego');
       }
       registraBattute(evento, risposta);
       return risposta;

@@ -202,6 +202,10 @@ function creaAssistente({
   strumenti = [],
   // Massimo di strumenti eseguiti per risposta (per esempio più camere per un gruppo).
   maxStrumentiPerRisposta = 4,
+  // Prompt e regole sui prezzi sostituibili (per esempio per la linea demo di Vocalba).
+  sistema = systemPer,
+  importiConsentiti = IMPORTI_BASE_DI_CONOSCENZA,
+  messaggioPrezzoNonVerificato = MESSAGGIO_PREZZO_NON_VERIFICATO,
 } = {}) {
   let anthropic = client;
   const perNome = new Map(strumenti.map((s) => [s.definizione.name, s]));
@@ -240,9 +244,9 @@ function creaAssistente({
     // può arrivare al chiamante, anche se il modello ignorasse le istruzioni.
     const bloccaSeServe = (risultato) => {
       if (prezziDati) return risultato;
-      const nonVerificati = importiInEuro(risultato.testo).filter((i) => !IMPORTI_BASE_DI_CONOSCENZA.has(i));
+      const nonVerificati = importiInEuro(risultato.testo).filter((i) => !importiConsentiti.has(i));
       if (nonVerificati.length === 0) return risultato;
-      return { testo: MESSAGGIO_PREZZO_NON_VERIFICATO, fine: false, richiamata: null, prezzoBloccato: true };
+      return { testo: messaggioPrezzoNonVerificato, fine: false, richiamata: null, prezzoBloccato: true };
     };
     const { parlato, richiamata } = estraiRichiamata(
       response.content
@@ -273,7 +277,7 @@ function creaAssistente({
   }
 
   async function rispondi(messages, datiChiamata = {}) {
-    const system = systemPer(datiChiamata);
+    const system = sistema(datiChiamata);
     const response = await chiama({ max_tokens: maxTokens, system, messages });
 
     const richieste = response.content.filter((b) => b.type === 'tool_use');

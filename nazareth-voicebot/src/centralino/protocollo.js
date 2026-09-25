@@ -8,6 +8,7 @@
 /**
  * Eventi che l'adattatore consegna al centralino.
  *
+ * Ogni evento può portare anche `numeroChiamato` (E.164): la linea su cui è arrivata la chiamata.
  * @typedef {{ tipo: 'chiamata_in_arrivo', chiamataId: string }} EventoChiamataInArrivo
  * @typedef {{ tipo: 'esito_inoltro', chiamataId: string, esito: EsitoInoltro }} EventoEsitoInoltro
  * @typedef {{ tipo: 'parlato', chiamataId: string, testo: string, numeroChiamante?: string|null }} EventoParlato

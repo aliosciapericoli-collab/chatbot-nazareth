@@ -98,6 +98,20 @@ aggiorna l'informativa privacy della struttura (dati conservati, durata, fornito
 
 Test sul database: `TEST_DATABASE_URL=postgres://… npm test` (il database di prova viene svuotato).
 
+### Linea demo pubblica
+
+Un secondo numero Twilio (`DEMO_PHONE_NUMBER`) collegato allo **stesso server e allo stesso
+webhook `/voice`** fa provare Vocalba a chiunque, per esempio dalla pagina alioscia.it/vocalba.
+Il server riconosce il numero chiamato (`To`) e risponde per **Casa Aurora**, una struttura
+dimostrativa dichiarata come tale (`src/demo/linea-demo.js`):
+
+- nessun dato del cliente vero: né nome, né contatti, né prezzi WuBook;
+- nessuna email alla reception, nessun archivio, nessuna statistica nella dashboard del cliente;
+- al massimo `DEMO_MAX_TURNS` domande (default 8), per contenere i costi.
+
+Sul numero demo in Twilio imposta "A call comes in" → Webhook `https://<dominio>/voice` (POST),
+come per il numero del cliente.
+
 ### Simulatore di chiamata
 
 `npm run simula` apre una chiamata finta da terminale che usa il centralino e Claude veri,
@@ -257,6 +271,8 @@ nazareth-voicebot/
 │   │   ├── registro-twilio.js # storico chiamate e costi da Twilio
 │   │   ├── pagina.html        # pagina della dashboard
 │   │   └── app.js             # script della pagina
+│   ├── demo/
+│   │   └── linea-demo.js      # linea demo pubblica: struttura dimostrativa Casa Aurora
 │   ├── archivio/
 │   │   └── archivio.js        # conversazioni, email e registro Twilio su Postgres
 │   ├── centralino/
@@ -342,6 +358,8 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `SESSION_SECRET`            | Facoltativo: segreto aggiuntivo per le sessioni della dashboard |
 | `DASHBOARD_PASSWORD`        | Password della dashboard `/dashboard` (vuota = disattivata)     |
 | `DATABASE_URL`              | Postgres dell'archivio conversazioni (vuoto = non conservate)   |
+| `DEMO_PHONE_NUMBER`         | Numero Twilio della linea demo pubblica (vuoto = nessuna demo)  |
+| `DEMO_MAX_TURNS`            | Domande massime per chiamata sulla linea demo (default 8)       |
 | `ARCHIVIO_GIORNI`           | Giorni di conservazione dell'archivio (default 90)              |
 | `DATABASE_SSL`              | `true`/`false` forza il TLS verso Postgres (default automatico) |
 | `TELEPHONY_PROVIDER`        | Adattatore del provider telefonico (default `twilio`)          |
