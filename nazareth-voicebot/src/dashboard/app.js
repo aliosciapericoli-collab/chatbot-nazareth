@@ -68,8 +68,23 @@
     return el('span', { class: `badge ${d.classe}` }, [el('span', { class: 'icona', 'aria-hidden': 'true', text: d.icona }), d.etichetta]);
   }
 
-  function tile(etichetta, valore, nota, allarme) {
-    return el('div', { class: 'card tile' }, [
+  // Icone delle schede (tratti in stile lucide), disegnate con nodi SVG e non con HTML.
+  const SIMBOLI = {
+    telefono: ['M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z'],
+    euro: ['M4 10h12', 'M4 14h9', 'M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2'],
+    richiamata: ['M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9', 'M10.3 21a1.94 1.94 0 0 0 3.4 0'],
+    tempo: ['M12 6v6l4 2', 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z'],
+  };
+
+  function simbolo(nome) {
+    const s = svg('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' });
+    for (const d of SIMBOLI[nome] || []) s.append(svg('path', { d }));
+    return el('span', { class: 'simbolo' }, s);
+  }
+
+  function tile(etichetta, valore, nota, allarme, icona) {
+    return el('div', { class: `card tile${allarme ? ' allarme' : ''}` }, [
+      icona ? simbolo(icona) : null,
       el('div', { class: 'etichetta', text: etichetta }),
       el('div', { class: 'valore', text: valore }),
       nota ? el('div', { class: `nota${allarme ? ' allarme' : ''}`, text: nota }) : null,
@@ -238,17 +253,17 @@
     const vp = o.verifichePrezzi;
     const rc = o.richiamate;
     sostituisci('kpi', [
-      tile('Chiamate gestite', String(o.conAssistente), o.chiamate > o.conAssistente ? `${o.chiamate} in totale nelle 24 ore` : 'ultime 24 ore, senza personale'),
+      tile('Chiamate gestite', String(o.conAssistente), o.chiamate > o.conAssistente ? `${o.chiamate} in totale nelle 24 ore` : 'ultime 24 ore, senza personale', false, 'telefono'),
       tile('Preventivi dati', String(o.preventivi.chiamate),
         vp.nonRiuscite ? `${plurale(vp.nonRiuscite, 'verifica non riuscita', 'verifiche non riuscite')}` :
           o.preventivi.valoreEuro ? `valore indicativo ${fmtEuro.format(o.preventivi.valoreEuro)}` : 'prezzi reali dal sito',
-        Boolean(vp.nonRiuscite)),
+        Boolean(vp.nonRiuscite), 'euro'),
       tile('Richiamate da fare', String(rc.richieste),
         rc.emailNonInviate ? `${rc.emailNonInviate} email NON inviate` : c.emailRichiamata ? 'arrivano per email' : 'richiamata non attiva',
-        Boolean(rc.emailNonInviate)),
+        Boolean(rc.emailNonInviate), 'richiamata'),
       tile('Tempo di risposta', secondi(o.latenzaMediaMs),
         o.esiti.ripiego ? `${plurale(o.esiti.ripiego, 'errore', 'errori')} nelle 24 ore` : o.latenzaP95Ms != null ? `quasi sempre entro ${secondi(o.latenzaP95Ms)}` : 'media delle 24 ore',
-        Boolean(o.esiti.ripiego)),
+        Boolean(o.esiti.ripiego), 'tempo'),
     ]);
 
     disegnaArgomenti(o.argomenti);

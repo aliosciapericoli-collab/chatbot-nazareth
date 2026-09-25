@@ -1,22 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Vocalba">
   <defs>
-    <linearGradient id="cielo" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1b2540"/>
-      <stop offset="1" stop-color="#0f1420"/>
-    </linearGradient>
-    <linearGradient id="alba" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0" stop-color="#f08a3c"/>
-      <stop offset="1" stop-color="#f6c453"/>
+    <radialGradient id="fondo" cx="50%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#0e7490"/>
+      <stop offset="1" stop-color="#062530"/>
+    </radialGradient>
+    <linearGradient id="bordo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#0891b2"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#cielo)"/>
-  <circle cx="256" cy="300" r="118" fill="url(#alba)"/>
-  <rect x="96" y="300" width="320" height="130" fill="url(#cielo)"/>
-  <g stroke="#f6c453" stroke-width="22" stroke-linecap="round" fill="none">
-    <path d="M150 352h40"/>
-    <path d="M216 336v32"/>
-    <path d="M256 322v60"/>
-    <path d="M296 336v32"/>
-    <path d="M322 352h40"/>
+  <rect width="512" height="512" rx="112" fill="url(#fondo)"/>
+  <rect x="10" y="10" width="492" height="492" rx="104" fill="none" stroke="url(#bordo)" stroke-width="8" stroke-opacity="0.6"/>
+  <path d="M100 136 H168 L256 312 L344 136 H412 L256 420 Z" fill="#ffffff"/>
+  <g stroke="#a5f3fc" stroke-width="18">
+    <path d="M216 196 V228"/>
+    <path d="M242 156 V260"/>
+    <path d="M270 172 V252"/>
+    <path d="M296 196 V228"/>
   </g>
+  <circle cx="256" cy="446" r="14" fill="#22d3ee"/>
 </svg>

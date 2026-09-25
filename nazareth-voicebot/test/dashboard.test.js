@@ -103,7 +103,7 @@ describe('dashboard: accesso', () => {
       assert.equal(pagina.status, 200);
       const html = await pagina.text();
       assert.match(html, /id="titolo-giornata"/);
-      assert.match(html, /<b>Vocalba<\/b><span>Nazareth Residence<\/span>/);
+      assert.match(html, /<b>Vocalba<\/b><span class=\"cliente\">Nazareth Residence<\/span>/);
       assert.equal(pagina.headers.get('cache-control'), 'no-store');
       assert.equal(pagina.headers.get('x-frame-options'), 'DENY');
       assert.match(pagina.headers.get('content-security-policy'), /default-src 'self'/);
@@ -130,6 +130,12 @@ describe('dashboard: accesso', () => {
       const icona = await fetch(`${base}/dashboard/icona.svg`);
       assert.match(icona.headers.get('content-type'), /image\/svg\+xml/);
       assert.equal((await fetch(`${base}/dashboard/app.js`)).status, 200);
+      // Il carattere è servito dal nostro server, pubblico e in cache: nessuna richiesta a servizi esterni.
+      const font = await fetch(`${base}/dashboard/manrope.woff2`);
+      assert.equal(font.status, 200);
+      assert.equal(font.headers.get('content-type'), 'font/woff2');
+      assert.match(font.headers.get('cache-control'), /max-age=31536000/);
+      assert.ok((await font.arrayBuffer()).byteLength > 10000);
     } finally {
       server.close();
     }

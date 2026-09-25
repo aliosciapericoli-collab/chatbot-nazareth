@@ -4,50 +4,96 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#0f1420">
+<meta name="theme-color" content="#050d14">
 <title>{{TITOLO}}</title>
 <link rel="icon" href="/dashboard/icona.svg" type="image/svg+xml">
 <link rel="manifest" href="/dashboard/manifest.webmanifest">
 <style>
-  :root {
-    color-scheme: light;
-    --sfondo: #f5f3ef; --carta: #ffffff; --bordo: #e4e0d8;
-    --testo: #16181d; --testo-2: #5b5d63; --accento: #d9731f; --accento-testo: #ffffff; --errore: #c23434;
+  @font-face {
+    font-family: "Manrope";
+    src: url("/dashboard/manrope.woff2") format("woff2");
+    font-weight: 200 800;
+    font-display: swap;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      color-scheme: dark;
-      --sfondo: #0b0f18; --carta: #141a28; --bordo: #232b3d;
-      --testo: #f3f4f7; --testo-2: #a7adbb; --accento: #f6a247; --accento-testo: #1a1206; --errore: #ff7a7a;
+  :root {
+    color-scheme: dark;
+    --sfondo: #050d14; --carta: rgba(14, 30, 42, 0.78); --bordo: rgba(103, 232, 249, 0.16);
+    --testo: #eef8fb; --testo-2: #a9c3cc; --accento: #22d3ee; --accento-2: #67e8f9; --accento-scuro: #0891b2;
+    --accento-testo: #032730; --errore: #f87171;
+    --aurora-1: rgba(34, 211, 238, 0.22); --aurora-2: rgba(14, 116, 144, 0.38);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      color-scheme: light;
+      --sfondo: #eef6f8; --carta: rgba(255, 255, 255, 0.86); --bordo: rgba(8, 145, 178, 0.18);
+      --testo: #0b1f28; --testo-2: #3b5560; --accento: #0e7490; --accento-2: #0891b2; --accento-scuro: #155e75;
+      --accento-testo: #ffffff; --errore: #dc2626;
+      --aurora-1: rgba(34, 211, 238, 0.25); --aurora-2: rgba(14, 116, 144, 0.14);
     }
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
-    background: radial-gradient(1200px 600px at 50% 115%, rgba(246, 162, 71, 0.18), transparent 60%), var(--sfondo);
-    color: var(--testo); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; min-height: 100vh; display: grid; grid-template-columns: minmax(0, 460px); place-content: center; align-items: center; padding: 24px 16px;
+    background:
+      radial-gradient(900px 520px at 50% -10%, var(--aurora-1), transparent 60%),
+      radial-gradient(900px 600px at 50% 120%, var(--aurora-2), transparent 60%),
+      var(--sfondo);
+    color: var(--testo); font: 16px/1.5 "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  .scheda { width: 100%; max-width: 380px; background: var(--carta); border: 1px solid var(--bordo); border-radius: 20px; padding: 32px 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12); }
-  .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-  .logo img { width: 48px; height: 48px; border-radius: 12px; }
-  .logo b { display: block; font-size: 20px; letter-spacing: -0.01em; }
-  .logo span { color: var(--testo-2); font-size: 14px; }
-  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
-  p { margin: 0 0 20px; color: var(--testo-2); font-size: 15px; }
-  label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-  input { width: 100%; font: inherit; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--bordo); background: transparent; color: var(--testo); }
+  .scheda {
+    width: 100%; max-width: 460px; background: var(--carta); border: 1px solid var(--bordo); border-radius: 28px;
+    padding: 36px 28px 28px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35); text-align: center;
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  }
+  .marchio { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 -8px 18px; }
+  .logo { width: 144px; height: 144px; flex: none; display: block; filter: drop-shadow(0 12px 34px rgba(34, 211, 238, 0.4)); }
+  .onde { flex: 1 1 0; min-width: 0; max-width: 120px; height: 90px; }
+  .onde.sinistra { transform: scaleX(-1); }
+  @media (max-width: 420px) { .logo { width: 112px; height: 112px; } .scheda { padding: 28px 20px 22px; } }
+  .onda-lato { transform-box: fill-box; transform-origin: center; animation: onda-lato 1.8s ease-in-out infinite; }
+  @keyframes onda-lato { 0%, 100% { transform: scaleY(0.55); } 50% { transform: scaleY(1.1); } }
+  .onda-logo { transform-box: fill-box; transform-origin: center; animation: onda 1.2s ease-in-out infinite; }
+  @keyframes onda { 0%, 100% { transform: scaleY(0.45); } 50% { transform: scaleY(1.3); } }
+  .nome { font-size: 36px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  .cliente { color: var(--testo-2); font-size: 15px; font-weight: 600; margin: 8px 0 26px; }
+  p { margin: 0 0 22px; color: var(--testo-2); font-size: 15px; }
+  form { text-align: left; }
+  label { display: block; font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  input { width: 100%; font: inherit; padding: 13px 15px; border-radius: 14px; border: 1px solid var(--bordo); background: rgba(127, 127, 127, 0.06); color: var(--testo); }
   input:focus { outline: 2px solid var(--accento); outline-offset: 1px; }
-  button { width: 100%; margin-top: 16px; font: inherit; font-weight: 650; padding: 12px; border: 0; border-radius: 12px; background: var(--accento); color: var(--accento-testo); cursor: pointer; }
-  .errore { color: var(--errore); font-size: 14px; margin-top: 12px; min-height: 1em; }
+  button {
+    width: 100%; margin-top: 16px; font: inherit; font-weight: 800; padding: 14px; border: 0; border-radius: 14px; cursor: pointer;
+    background: linear-gradient(135deg, var(--accento-2), var(--accento-scuro)); color: var(--accento-testo);
+    box-shadow: 0 10px 30px rgba(34, 211, 238, 0.28);
+  }
+  .errore { color: var(--errore); font-size: 14px; margin-top: 12px; min-height: 1em; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { .onda-logo, .onda-lato { animation: none; } }
 </style>
 </head>
 <body>
   <main class="scheda">
-    <div class="logo">
-      <img src="/dashboard/icona.svg" alt="">
-      <div><b>{{APP_NAME}}</b><span>{{CLIENT_NAME}}</span></div>
+    <div class="marchio">
+      <svg class="onde sinistra" viewBox="0 0 180 120" aria-hidden="true"><g stroke="#22d3ee" stroke-width="2.4" stroke-linecap="round"><path class="onda-lato" style="animation-delay:0.00s;opacity:0.90" d="M3 33 V87"/><path class="onda-lato" style="animation-delay:-0.09s;opacity:0.88" d="M9 16 V104"/><path class="onda-lato" style="animation-delay:-0.18s;opacity:0.87" d="M15 41 V79"/><path class="onda-lato" style="animation-delay:-0.27s;opacity:0.85" d="M21 34 V86"/><path class="onda-lato" style="animation-delay:-0.36s;opacity:0.83" d="M27 42.5 V77.5"/><path class="onda-lato" style="animation-delay:-0.45s;opacity:0.82" d="M33 35.5 V84.5"/><path class="onda-lato" style="animation-delay:-0.54s;opacity:0.80" d="M39 23.5 V96.5"/><path class="onda-lato" style="animation-delay:-0.63s;opacity:0.78" d="M45 34.5 V85.5"/><path class="onda-lato" style="animation-delay:-0.72s;opacity:0.77" d="M51 39.5 V80.5"/><path class="onda-lato" style="animation-delay:-0.81s;opacity:0.75" d="M57 35.5 V84.5"/><path class="onda-lato" style="animation-delay:-0.90s;opacity:0.73" d="M63 38.5 V81.5"/><path class="onda-lato" style="animation-delay:-0.99s;opacity:0.72" d="M69 40 V80"/><path class="onda-lato" style="animation-delay:-1.08s;opacity:0.70" d="M75 33 V87"/><path class="onda-lato" style="animation-delay:-1.17s;opacity:0.68" d="M81 47 V73"/><path class="onda-lato" style="animation-delay:-1.26s;opacity:0.67" d="M87 37.5 V82.5"/><path class="onda-lato" style="animation-delay:-1.35s;opacity:0.65" d="M93 46 V74"/><path class="onda-lato" style="animation-delay:-1.44s;opacity:0.63" d="M99 45 V75"/><path class="onda-lato" style="animation-delay:-1.53s;opacity:0.62" d="M105 40 V80"/><path class="onda-lato" style="animation-delay:-1.62s;opacity:0.60" d="M111 46 V74"/><path class="onda-lato" style="animation-delay:-1.71s;opacity:0.58" d="M117 46 V74"/><path class="onda-lato" style="animation-delay:-1.80s;opacity:0.57" d="M123 43 V77"/><path class="onda-lato" style="animation-delay:-1.89s;opacity:0.55" d="M129 48.5 V71.5"/><path class="onda-lato" style="animation-delay:-1.98s;opacity:0.53" d="M135 50 V70"/><path class="onda-lato" style="animation-delay:-2.07s;opacity:0.52" d="M141 49 V71"/><path class="onda-lato" style="animation-delay:-2.16s;opacity:0.50" d="M147 53 V67"/><path class="onda-lato" style="animation-delay:-2.25s;opacity:0.48" d="M153 49 V71"/><path class="onda-lato" style="animation-delay:-2.34s;opacity:0.47" d="M159 53.5 V66.5"/><path class="onda-lato" style="animation-delay:-2.43s;opacity:0.45" d="M165 54 V66"/><path class="onda-lato" style="animation-delay:-2.52s;opacity:0.43" d="M171 54.5 V65.5"/><path class="onda-lato" style="animation-delay:-2.61s;opacity:0.42" d="M177 56 V64"/></g></svg>
+    <svg class="logo" viewBox="0 0 120 120" role="img" aria-label="{{APP_NAME}}">
+      <defs>
+        <radialGradient id="vb-fondo" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#0e7490"/><stop offset="1" stop-color="#083344"/></radialGradient>
+        <linearGradient id="vb-anello" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67e8f9"/><stop offset="1" stop-color="#0891b2"/></linearGradient>
+      </defs>
+      <circle cx="60" cy="60" r="54" fill="url(#vb-fondo)" stroke="url(#vb-anello)" stroke-width="3"/>
+      <path d="M20 30 H36 L60 78 L84 30 H100 L60 98 Z" fill="#ffffff"/>
+      <g stroke="#a5f3fc" stroke-width="4">
+        <path class="onda-logo" d="M49 44 V52"/>
+        <path class="onda-logo" style="animation-delay:-0.3s" d="M56 34 V60"/>
+        <path class="onda-logo" style="animation-delay:-0.6s" d="M64 38 V58"/>
+        <path class="onda-logo" style="animation-delay:-0.9s" d="M71 44 V52"/>
+      </g>
+      <circle cx="60" cy="102" r="4" fill="#22d3ee"/>
+    </svg>
+      <svg class="onde" viewBox="0 0 180 120" aria-hidden="true"><g stroke="#22d3ee" stroke-width="2.4" stroke-linecap="round"><path class="onda-lato" style="animation-delay:0.00s;opacity:0.90" d="M3 33 V87"/><path class="onda-lato" style="animation-delay:-0.09s;opacity:0.88" d="M9 16 V104"/><path class="onda-lato" style="animation-delay:-0.18s;opacity:0.87" d="M15 41 V79"/><path class="onda-lato" style="animation-delay:-0.27s;opacity:0.85" d="M21 34 V86"/><path class="onda-lato" style="animation-delay:-0.36s;opacity:0.83" d="M27 42.5 V77.5"/><path class="onda-lato" style="animation-delay:-0.45s;opacity:0.82" d="M33 35.5 V84.5"/><path class="onda-lato" style="animation-delay:-0.54s;opacity:0.80" d="M39 23.5 V96.5"/><path class="onda-lato" style="animation-delay:-0.63s;opacity:0.78" d="M45 34.5 V85.5"/><path class="onda-lato" style="animation-delay:-0.72s;opacity:0.77" d="M51 39.5 V80.5"/><path class="onda-lato" style="animation-delay:-0.81s;opacity:0.75" d="M57 35.5 V84.5"/><path class="onda-lato" style="animation-delay:-0.90s;opacity:0.73" d="M63 38.5 V81.5"/><path class="onda-lato" style="animation-delay:-0.99s;opacity:0.72" d="M69 40 V80"/><path class="onda-lato" style="animation-delay:-1.08s;opacity:0.70" d="M75 33 V87"/><path class="onda-lato" style="animation-delay:-1.17s;opacity:0.68" d="M81 47 V73"/><path class="onda-lato" style="animation-delay:-1.26s;opacity:0.67" d="M87 37.5 V82.5"/><path class="onda-lato" style="animation-delay:-1.35s;opacity:0.65" d="M93 46 V74"/><path class="onda-lato" style="animation-delay:-1.44s;opacity:0.63" d="M99 45 V75"/><path class="onda-lato" style="animation-delay:-1.53s;opacity:0.62" d="M105 40 V80"/><path class="onda-lato" style="animation-delay:-1.62s;opacity:0.60" d="M111 46 V74"/><path class="onda-lato" style="animation-delay:-1.71s;opacity:0.58" d="M117 46 V74"/><path class="onda-lato" style="animation-delay:-1.80s;opacity:0.57" d="M123 43 V77"/><path class="onda-lato" style="animation-delay:-1.89s;opacity:0.55" d="M129 48.5 V71.5"/><path class="onda-lato" style="animation-delay:-1.98s;opacity:0.53" d="M135 50 V70"/><path class="onda-lato" style="animation-delay:-2.07s;opacity:0.52" d="M141 49 V71"/><path class="onda-lato" style="animation-delay:-2.16s;opacity:0.50" d="M147 53 V67"/><path class="onda-lato" style="animation-delay:-2.25s;opacity:0.48" d="M153 49 V71"/><path class="onda-lato" style="animation-delay:-2.34s;opacity:0.47" d="M159 53.5 V66.5"/><path class="onda-lato" style="animation-delay:-2.43s;opacity:0.45" d="M165 54 V66"/><path class="onda-lato" style="animation-delay:-2.52s;opacity:0.43" d="M171 54.5 V65.5"/><path class="onda-lato" style="animation-delay:-2.61s;opacity:0.42" d="M177 56 V64"/></g></svg>
     </div>
-    <h1>Accedi</h1>
+    <div class="nome">{{APP_NAME}}</div>
+    <div class="cliente">{{CLIENT_NAME}}</div>
     <p>Accedi per vedere cosa è successo al telefono mentre la reception non c'era.</p>
     <form method="post" action="/dashboard/login">
       <label for="password">Password</label>

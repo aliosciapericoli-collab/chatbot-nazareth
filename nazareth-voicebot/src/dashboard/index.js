@@ -9,6 +9,8 @@ const { APP_NAME, CLIENT_NAME, TITOLO } = require('../marchio');
 const leggi = (file) => fs.readFileSync(path.join(__dirname, file), 'utf8');
 const SCRIPT = leggi('app.js');
 const ICONA = leggi('icona.svg');
+// Carattere Manrope servito da qui (licenza OFL), senza chiamate a servizi esterni.
+const FONT = fs.readFileSync(require.resolve('@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2'));
 
 // Blocco dei tentativi di accesso falliti, per indirizzo IP.
 const MAX_TENTATIVI_FALLITI = 10;
@@ -107,6 +109,10 @@ function creaDashboard({ password, metriche, registroTwilio, configurazione, now
 
   // Risorse pubbliche: servono per installare la dashboard come app sul telefono.
   router.get('/dashboard/icona.svg', (req, res) => res.type('image/svg+xml').send(ICONA));
+  router.get('/dashboard/manrope.woff2', (req, res) => {
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.type('font/woff2').send(FONT);
+  });
   router.get('/dashboard/manifest.webmanifest', (req, res) => {
     res.type('application/manifest+json').send(JSON.stringify({
       name: TITOLO,
@@ -114,8 +120,8 @@ function creaDashboard({ password, metriche, registroTwilio, configurazione, now
       start_url: '/dashboard',
       scope: '/dashboard',
       display: 'standalone',
-      background_color: '#0f1420',
-      theme_color: '#0f1420',
+      background_color: '#050d14',
+      theme_color: '#050d14',
       icons: [{ src: '/dashboard/icona.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
     }));
   });
