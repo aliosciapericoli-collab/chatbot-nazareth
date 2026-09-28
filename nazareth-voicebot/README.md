@@ -98,6 +98,29 @@ aggiorna l'informativa privacy della struttura (dati conservati, durata, fornito
 
 Test sul database: `TEST_DATABASE_URL=postgres://… npm test` (il database di prova viene svuotato).
 
+### Voce in streaming (ConversationRelay)
+
+Con `VOICE_STREAMING=true` la conversazione passa da Twilio **ConversationRelay**: Twilio
+trascrive la voce e la legge mentre arriva il testo, e il server dialoga su un WebSocket
+(`/relay`) invece che con un webhook per turno. Le risposte partono prima e il cliente può
+interrompere il bot. Il centralino non cambia: stesso benvenuto, stesse regole, stessi prezzi,
+richiamate, archivio e demo.
+
+- **Prerequisito Twilio:** Voice → Settings → "Predictive and Generative AI/ML Features
+  Addendum" attivo.
+- **Sicurezza:** ogni sessione porta un gettone monouso firmato con `TWILIO_AUTH_TOKEN`, legato
+  alla chiamata e valido due minuti: senza, il WebSocket viene chiuso.
+- **Congedi e inoltri** chiudono la sessione con `end` e passano al webhook `/relay-fine`, che
+  legge la frase per intero con `<Say>` e poi riaggancia o inoltra.
+- **Silenzio:** se il cliente non parla, dopo `RELAY_SILENZIO_MS` (default 10000) più il tempo
+  della frase appena detta arriva "È ancora in linea?"; al secondo silenzio la chiamata si chiude.
+- **Paracadute:** se la sessione fallisce (per esempio voce non valida) `/relay-fine` riprende
+  la conversazione con i webhook classici `<Gather>`.
+- **Voce:** ricavata da `TTS_VOICE` (`Google.it-IT-Chirp3-HD-Aoede` → provider Google, voce
+  `it-IT-Chirp3-HD-Aoede`); si può forzare con `RELAY_TTS_PROVIDER` e `RELAY_VOICE`.
+
+Per tornare indietro basta `VOICE_STREAMING=false` (o toglierla): nessun'altra modifica.
+
 ### Linea demo pubblica
 
 Un secondo numero Twilio (`DEMO_PHONE_NUMBER`) collegato allo **stesso server e allo stesso
@@ -284,6 +307,7 @@ nazareth-voicebot/
 │   │   └── orario.js          # orario della reception
 │   ├── provider/
 │   │   ├── index.js           # registro dei provider (TELEPHONY_PROVIDER)
+│   │   ├── twilio-relay.js    # voce in streaming (ConversationRelay, WebSocket /relay)
 │   │   └── twilio.js          # adattatore Twilio (webhook, firma, TwiML)
 │   ├── disponibilita/
 │   │   ├── wubook.js          # client del motore WuBook: richiesta, lettura, cache
@@ -358,6 +382,9 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `SESSION_SECRET`            | Facoltativo: segreto aggiuntivo per le sessioni della dashboard |
 | `DASHBOARD_PASSWORD`        | Password della dashboard `/dashboard` (vuota = disattivata)     |
 | `DATABASE_URL`              | Postgres dell'archivio conversazioni (vuoto = non conservate)   |
+| `VOICE_STREAMING`           | `true` = voce in streaming con ConversationRelay (default spenta) |
+| `RELAY_SILENZIO_MS`         | Attesa in streaming prima di "è ancora in linea?" (default 10000) |
+| `RELAY_TTS_PROVIDER` / `RELAY_VOICE` | Voce in streaming, se diversa da quella ricavata da `TTS_VOICE` |
 | `DEMO_PHONE_NUMBER`         | Numero Twilio della linea demo pubblica (vuoto = nessuna demo)  |
 | `DEMO_MAX_TURNS`            | Domande massime per chiamata sulla linea demo (default 8)       |
 | `ARCHIVIO_GIORNI`           | Giorni di conservazione dell'archivio (default 90)              |

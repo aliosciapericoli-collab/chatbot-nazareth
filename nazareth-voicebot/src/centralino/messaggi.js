@@ -2,7 +2,7 @@
 
 // Prima frase: dichiarazione che risponde un assistente virtuale (art. 50 AI Act),
 // poi avviso della trascrizione automatica del parlato.
-const AVVISO_TRASCRIZIONE = 'Le sue parole vengono trascritte automaticamente per poterle rispondere.';
+const AVVISO_TRASCRIZIONE = 'La chiamata viene trascritta automaticamente.';
 
 // Giorni di conservazione detti a voce; per altri valori si resta generici.
 const GIORNI_A_PAROLE = { 7: 'sette', 15: 'quindici', 30: 'trenta', 60: 'sessanta', 90: 'novanta', 180: 'centottanta', 365: 'trecentosessantacinque' };
@@ -11,14 +11,14 @@ const GIORNI_A_PAROLE = { 7: 'sette', 15: 'quindici', 30: 'trenta', 60: 'sessant
 function avvisoTrascrizione(giorniConservazione = 0) {
   if (!giorniConservazione) return AVVISO_TRASCRIZIONE;
   const periodo = GIORNI_A_PAROLE[giorniConservazione] ? `per ${GIORNI_A_PAROLE[giorniConservazione]} giorni` : 'per un periodo limitato';
-  return `Le sue parole vengono trascritte automaticamente per poterle rispondere, e la conversazione viene conservata ${periodo}.`;
+  return `La chiamata viene trascritta e conservata ${periodo}.`;
 }
 
 function creaIntro(giorniConservazione = 0) {
   const avviso = avvisoTrascrizione(giorniConservazione);
   return {
-    chiusa: `Benvenuto al Nazareth Residence, sono l'assistente virtuale. Al momento la reception è chiusa. ${avviso} Come posso aiutarla?`,
-    occupata: `Benvenuto al Nazareth Residence, sono l'assistente virtuale. Al momento la reception non è disponibile. ${avviso} Come posso aiutarla?`,
+    chiusa: `Nazareth Residence, sono l'assistente virtuale: la reception ora è chiusa. ${avviso} Come posso aiutarla?`,
+    occupata: `Nazareth Residence, sono l'assistente virtuale: la reception ora è occupata. ${avviso} Come posso aiutarla?`,
     continua: 'Come posso aiutarla?',
   };
 }

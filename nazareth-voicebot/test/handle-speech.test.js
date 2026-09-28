@@ -234,13 +234,13 @@ describe('accoglienza e regole', () => {
   test('/voice a reception chiusa: prima frase con dichiarazione di assistente virtuale e avviso di trascrizione', async () => {
     const r = await postTwilio('/voice', { CallSid: 'CA_voice' });
     assert.equal(r.status, 200);
-    assert.match(r.body, /<Say [^>]*>Benvenuto al Nazareth Residence, sono l'assistente virtuale\. Al momento la reception è chiusa\. Le sue parole vengono trascritte automaticamente/);
+    assert.match(r.body, /<Say [^>]*>Nazareth Residence, sono l'assistente virtuale: la reception ora è chiusa\. La chiamata viene trascritta automaticamente\. Come posso aiutarla\?/);
     assert.match(r.body, /<Gather input="speech" language="it-IT"/);
   });
 
   test('/dial-status: reception non disponibile passa all\'assistente, chiamata conclusa chiude', async () => {
     const occupata = await postTwilio('/dial-status', { CallSid: 'CA_dial', DialCallStatus: 'no-answer' });
-    assert.match(occupata.body, /sono l'assistente virtuale\. Al momento la reception non è disponibile/);
+    assert.match(occupata.body, /sono l'assistente virtuale: la reception ora è occupata/);
     const conclusa = await postTwilio('/dial-status', { CallSid: 'CA_dial', DialCallStatus: 'completed' });
     assert.match(conclusa.body, /<Response><Hangup\/><\/Response>/);
   });

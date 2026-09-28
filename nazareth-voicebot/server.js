@@ -211,9 +211,11 @@ if (require.main === module) {
   } else {
     console.warn('DATABASE_URL non impostato: le conversazioni non vengono archiviate.');
   }
-  createApp({ provider, registroTwilio, archivio }).listen(PORT, () => {
+  const server = createApp({ provider, registroTwilio, archivio }).listen(PORT, () => {
     console.log(`nazareth-voicebot in ascolto sulla porta ${PORT} (provider: ${provider.nome})`);
   });
+  // Voce in streaming: il WebSocket di ConversationRelay vive sullo stesso server.
+  provider.collegaWebSocket?.(server);
 }
 
 module.exports = { createApp, isReceptionChiusa, MESSAGGIO_RIPIEGO };

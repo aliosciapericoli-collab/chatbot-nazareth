@@ -60,7 +60,7 @@ describe('archivio: senza database', () => {
   });
 
   test('con l\'archivio attivo il chiamante sente per quanto viene conservata la conversazione', () => {
-    assert.match(creaIntro(90).chiusa, /la conversazione viene conservata per novanta giorni\. Come posso aiutarla\?$/);
+    assert.match(creaIntro(90).chiusa, /La chiamata viene trascritta e conservata per novanta giorni\. Come posso aiutarla\?$/);
     assert.match(creaIntro(45).occupata, /conservata per un periodo limitato\./);
     assert.doesNotMatch(INTRO.chiusa, /conservata/);
   });

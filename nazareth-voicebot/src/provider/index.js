@@ -1,6 +1,7 @@
 // Registro dei provider telefonici. Per aggiungerne uno: crea src/provider/<nome>.js
 // con la stessa interfaccia di twilio.js e registralo qui.
 const { creaProviderTwilio } = require('./twilio');
+const { voceRelay } = require('./twilio-relay');
 
 const PROVIDER = {
   twilio: () =>
@@ -9,6 +10,14 @@ const PROVIDER = {
       // Da disattivare solo in locale, per provare gli endpoint con curl.
       validaFirma: process.env.TWILIO_VALIDATE_SIGNATURE !== 'false',
       publicBaseUrl: process.env.PUBLIC_BASE_URL,
+      // Voce in streaming con ConversationRelay (VOICE_STREAMING=true): risposte più rapide.
+      relay: {
+        attivo: process.env.VOICE_STREAMING === 'true',
+        ...voceRelay(process.env.TTS_VOICE),
+        ...(process.env.RELAY_TTS_PROVIDER ? { ttsProvider: process.env.RELAY_TTS_PROVIDER } : {}),
+        ...(process.env.RELAY_VOICE ? { voice: process.env.RELAY_VOICE } : {}),
+        silenzioMs: Number.parseInt(process.env.RELAY_SILENZIO_MS, 10) || undefined,
+      },
     }),
 };
 

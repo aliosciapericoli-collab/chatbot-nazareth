@@ -2,6 +2,7 @@
 // È l'unico file che conosce Twilio; per cambiare provider si scrive un adattatore nuovo.
 const express = require('express');
 const twilio = require('twilio');
+const { creaGettone, twimlRelay, creaServerRelay, PERCORSO_WS, PERCORSO_FINE } = require('./twilio-relay');
 
 const { twiml } = twilio;
 
@@ -31,8 +32,36 @@ const ESITI_DIAL = {
  * @param {boolean} opzioni.validaFirma    verifica X-Twilio-Signature (true in produzione)
  * @param {string} [opzioni.publicBaseUrl] URL pubblico configurato su Twilio
  * @param {string} [opzioni.authToken]     default: TWILIO_AUTH_TOKEN
+ * @param {object} [opzioni.relay]          voce in streaming (ConversationRelay): { attivo, ttsProvider, voice, silenzioMs }
  */
-function creaProviderTwilio({ voce, validaFirma = true, publicBaseUrl, authToken } = {}) {
+function creaProviderTwilio({ voce, validaFirma = true, publicBaseUrl, authToken = process.env.TWILIO_AUTH_TOKEN, relay = {} } = {}) {
+  let centralinoCollegato = null;
+  const serverRelay = relay.attivo
+    ? creaServerRelay({
+      centralino: () => centralinoCollegato,
+      segreto: authToken || '',
+      silenzioMs: relay.silenzioMs,
+      log: (evento, dettagli) => console.log(JSON.stringify({ ts: new Date().toISOString(), evento, ...dettagli })),
+    })
+    : null;
+
+  // Con lo streaming attivo il primo ascolto apre la sessione ConversationRelay: il testo
+  // da dire prima diventa il benvenuto letto da Twilio.
+  function renderizzaRelay(listaAzioni, req) {
+    const indice = listaAzioni.findIndex((a) => a.tipo === 'ascolta');
+    if (!serverRelay || indice === -1 || !req?.body?.CallSid) return null;
+    const prima = listaAzioni.slice(0, indice);
+    if (prima.some((a) => a.tipo !== 'parla')) return null;
+    const base = publicBaseUrl ? new URL(publicBaseUrl) : new URL(`https://${req.get('host')}`);
+    return twimlRelay({
+      wssUrl: `wss://${base.host}${PERCORSO_WS}`,
+      benvenuto: prima.map((a) => a.testo).join(' '),
+      gettone: creaGettone(authToken || '', req.body.CallSid),
+      lingua: listaAzioni[indice].lingua,
+      config: relay,
+    });
+  }
+
   function renderizza(listaAzioni) {
     const response = new twiml.VoiceResponse();
 
@@ -81,6 +110,7 @@ function creaProviderTwilio({ voce, validaFirma = true, publicBaseUrl, authToken
   }
 
   function router(centralino) {
+    centralinoCollegato = centralino;
     const r = express.Router();
 
     // Twilio invia i parametri dei webhook come application/x-www-form-urlencoded.
@@ -98,8 +128,31 @@ function creaProviderTwilio({ voce, validaFirma = true, publicBaseUrl, authToken
     // Il numero chiamato serve a distinguere più linee sullo stesso server (per esempio la demo).
     const gestisci = (creaEvento) => async (req, res) => {
       const azioni = await centralino.gestisci({ ...creaEvento(req), numeroChiamato: req.body.To || null });
-      res.type('text/xml').send(renderizza(azioni));
+      res.type('text/xml').send(renderizzaRelay(azioni, req) ?? renderizza(azioni));
     };
+
+    // Fine della sessione in streaming: congedo o inoltro passati con "end", oppure
+    // sessione fallita (voce non valida, errore): si continua con i webhook classici.
+    r.post(PERCORSO_FINE, verificaTwilio, async (req, res) => {
+      let passaggio = null;
+      try {
+        passaggio = req.body.HandoffData ? JSON.parse(req.body.HandoffData) : null;
+      } catch {
+        passaggio = null;
+      }
+      if (Array.isArray(passaggio?.azioni)) return res.type('text/xml').send(renderizza(passaggio.azioni));
+      if (req.body.SessionStatus === 'failed' || req.body.ErrorCode) {
+        console.log(JSON.stringify({ ts: new Date().toISOString(), chiamataId: req.body.CallSid, evento: 'relay_fallito', codice: req.body.ErrorCode ?? null }));
+        const azioni = await centralino.gestisci({
+          tipo: 'silenzio',
+          chiamataId: req.body.CallSid,
+          contesto: { motivo: 'continua', tentativo: 1 },
+          numeroChiamato: req.body.To || null,
+        });
+        return res.type('text/xml').send(renderizza(azioni));
+      }
+      return res.type('text/xml').send(renderizza([{ tipo: 'riaggancia' }]));
+    });
 
     r.post(PERCORSI.chiamataInArrivo, verificaTwilio, gestisci((req) => ({
       tipo: 'chiamata_in_arrivo',
@@ -134,7 +187,15 @@ function creaProviderTwilio({ voce, validaFirma = true, publicBaseUrl, authToken
     return r;
   }
 
-  return { nome: 'twilio', router, renderizza, PERCORSI };
+  return {
+    nome: relay.attivo ? 'twilio-streaming' : 'twilio',
+    router,
+    renderizza,
+    PERCORSI,
+    // Con lo streaming attivo il WebSocket va agganciato al server HTTP.
+    collegaWebSocket: serverRelay ? (server) => serverRelay.collega(server) : () => {},
+    chiudi: () => serverRelay?.chiudi(),
+  };
 }
 
 module.exports = { creaProviderTwilio, ESITI_DIAL };

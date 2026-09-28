@@ -11,7 +11,7 @@ delete process.env.SMTP_HOST;
 
 const twilio = require('twilio');
 const { createApp } = require('../server');
-const { creaAssistente, SYSTEM_PROMPT, FRASE_PREZZI, MESSAGGIO_PREZZO_NON_VERIFICATO, importiInEuro } = require('../src/claude');
+const { creaAssistente, SYSTEM_PROMPT, FRASE_PREZZI, FRASE_TASSA, MESSAGGIO_PREZZO_NON_VERIFICATO, importiInEuro } = require('../src/claude');
 const { creaMetriche } = require('../src/dashboard/metriche');
 const {
   creaClientWuBook,
@@ -280,7 +280,7 @@ describe('prezzi al telefono (Twilio + Claude simulati)', () => {
 
       const secondo = await post('/prosegui?motivo=verifica', { CallSid: 'CA_prezzi' });
       assert.match(secondo.body, /Camera Doppia costa 166 euro/);
-      assert.match(secondo.body, /La tassa di soggiorno è esclusa: due euro e trenta a persona a notte, per al massimo tre notti\./);
+      assert.ok(secondo.body.includes(FRASE_TASSA));
       assert.ok(secondo.body.includes(FRASE_PREZZI));
       assert.match(secondo.body, /<Gather /);
 
@@ -388,7 +388,7 @@ describe('prezzi al telefono (Twilio + Claude simulati)', () => {
     assert.match(SYSTEM_PROMPT, /Prezzi e disponibilità puoi darli SOLO con i dati appena ottenuti dallo strumento verifica_disponibilita/);
     assert.match(SYSTEM_PROMPT, /non ripeterli da risposte precedenti/);
     assert.match(SYSTEM_PROMPT, /"questo weekend" è da venerdì a domenica/);
-    assert.match(SYSTEM_PROMPT, /tassa di soggiorno è esclusa: due euro e trenta a persona a notte/);
+    assert.ok(SYSTEM_PROMPT.includes(FRASE_TASSA));
     assert.ok(SYSTEM_PROMPT.includes(`Chiudi sempre la risposta con questa frase: "${FRASE_PREZZI}"`));
     assert.match(SYSTEM_PROMPT, /Per gruppi che occupano più di quattro camere non dare prezzi/);
     assert.match(SYSTEM_PROMPT, /Non prendere prenotazioni, non confermarle e non bloccare camere/);

@@ -116,7 +116,7 @@ describe('linea demo', () => {
 
   test('il numero del cliente continua a rispondere come prima', async () => {
     const benvenuto = await post('/voice', { CallSid: 'CA_cliente_1', To: NUMERO_CLIENTE });
-    assert.match(benvenuto, /Benvenuto al Nazareth Residence/);
+    assert.match(benvenuto, /Nazareth Residence, sono l'assistente virtuale/);
     assert.match(await post('/handle-speech', { CallSid: 'CA_cliente_1', To: NUMERO_CLIENTE, SpeechResult: 'Buonasera' }), /Risposta del cliente vero/);
     assert.equal(metriche.riepilogo().ultime24h.chiamate, 1);
     assert.ok(archiviate.length > 0);

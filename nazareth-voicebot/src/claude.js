@@ -18,8 +18,8 @@ const APRI_RICHIAMATA = '[RICHIAMATA]';
 const CHIUDI_RICHIAMATA = '[/RICHIAMATA]';
 
 // Frase obbligatoria dopo ogni prezzo, scritta per la sintesi vocale.
-const FRASE_PREZZI = 'Il prezzo è quello del nostro sito in questo momento e può cambiare: per prenotare usi il sito nazarethresidence punto com oppure scriva su WhatsApp al tre quattro otto, nove zero cinque, quattro sette due tre.';
-const FRASE_TASSA = 'La tassa di soggiorno è esclusa: due euro e trenta a persona a notte, per al massimo tre notti.';
+const FRASE_PREZZI = 'È il prezzo del sito in questo momento e può cambiare: si prenota su nazarethresidence punto com.';
+const FRASE_TASSA = 'Tassa di soggiorno esclusa: due euro e trenta a persona a notte, massimo tre notti.';
 
 // Istruzioni del bot. La sezione sulla richiamata c'è solo se l'email alla reception è
 // configurata: senza, il bot non deve nemmeno nominarla.
@@ -49,7 +49,7 @@ Richiamata dalla reception:
 
 Regole:
 - Usa SOLO le informazioni della base di conoscenza qui sotto. Non aggiungere nulla che non sia scritto lì, nemmeno se ti sembra plausibile.
-- Le tue risposte vengono lette da una sintesi vocale: rispondi con una, due o al massimo tre frasi brevi (per prezzi e disponibilità fino a cinque). Niente elenchi, niente markdown, niente emoji, niente simboli.
+- Le tue risposte vengono lette da una sintesi vocale e chi chiama si stanca in fretta: rispondi con una o al massimo due frasi brevi (per prezzi e disponibilità al massimo quattro). Rispondi solo a quello che è stato chiesto, senza aggiungere dettagli, premesse o ripetizioni. Niente elenchi, niente markdown, niente emoji, niente simboli.
 - Scrivi i numeri come vanno pronunciati. Il WhatsApp si legge "tre quattro otto, nove zero cinque, quattro sette due tre"; il telefono della reception "zero sette sei uno, uno cinque sei, quattro sei uno due"; l'email "info chiocciola nazarethresidence punto com"; il sito "nazarethresidence punto com". Gli orari si scrivono a parole, per esempio "dalle sette alle venti".
 - Non prendere prenotazioni, non confermarle e non bloccare camere. ${datiPersonali} Per prenotare rimanda al sito nazarethresidence punto com oppure al WhatsApp tre quattro otto, nove zero cinque, quattro sette due tre.
 - Arrivi tardivi e self check-in: non dire mai che il chiamante può fare il check-in adesso e non promettere che troverà la chiave o la camera pronta. Spiega soltanto che per gli arrivi tardivi c'è il self check-in e che va attivato scrivendo su WhatsApp al tre quattro otto, nove zero cinque, quattro sette due tre entro le venti. Se il chiamante dice che le venti sono già passate, rispondi che non puoi confermarlo tu e invitalo a scrivere comunque su WhatsApp.
@@ -65,7 +65,7 @@ Prezzi e disponibilità:
 - Per usarlo servono data di arrivo, data di partenza o numero di notti, e numero di adulti e di bambini. Chiedi quello che manca, una cosa alla volta.
 - Interpreta le date parlate rispetto alla data di oggi indicata nei dati della chiamata, ora di Roma: "il tre ottobre" è la prossima data con quel giorno e mese; "questo weekend" è da venerdì a domenica di questa settimana, due notti. Se una data è ambigua, ripetila al chiamante e chiedi conferma prima di usare lo strumento.
 - Con il risultato indica le tipologie disponibili, al massimo tre partendo dalla più economica, con il prezzo totale indicativo del soggiorno, colazione inclusa. Se una tipologia è l'ultima camera disponibile, dillo. Scrivi i prezzi in cifre seguite da euro, per esempio 166 euro.
-- Di' sempre che la tassa di soggiorno è esclusa: due euro e trenta a persona a notte, per al massimo tre notti.
+- Di' sempre che la tassa di soggiorno è esclusa, con questa frase: "${FRASE_TASSA}"
 - Chiudi sempre la risposta con questa frase: "${FRASE_PREZZI}"
 - Se non ci sono camere, dillo e suggerisci altre date oppure il sito o WhatsApp. Se la verifica non riesce, di' che in questo momento non riesci a verificare e rimanda al sito o a WhatsApp.
 - Per gruppi che occupano più di quattro camere non dare prezzi.
@@ -162,7 +162,7 @@ function importiInEuro(testo) {
 const IMPORTI_BASE_DI_CONOSCENZA = new Set(importiInEuro(knowledgeBase));
 
 // Detto al posto di una risposta con un prezzo non verificato.
-const MESSAGGIO_PREZZO_NON_VERIFICATO = 'Per prezzi e disponibilità aggiornati posso fare una verifica se mi indica le date e il numero di persone, oppure può consultare il sito nazarethresidence punto com o scriverci su WhatsApp al tre quattro otto, nove zero cinque, quattro sette due tre.';
+const MESSAGGIO_PREZZO_NON_VERIFICATO = 'Per il prezzo mi dica le date e quante persone, così verifico sul sito.';
 
 // Garantisce le frasi obbligatorie quando al chiamante sono stati dati dei prezzi.
 function conFrasiObbligatorie(testo) {
@@ -333,5 +333,6 @@ module.exports = {
   conFrasiObbligatorie,
   importiInEuro,
   FRASE_PREZZI,
+  FRASE_TASSA,
   MESSAGGIO_PREZZO_NON_VERIFICATO,
 };
