@@ -10,6 +10,7 @@ const { NOMI_ARGOMENTI } = require('../centralino/argomenti');
 
 const TIMEZONE_PREDEFINITA = 'Europe/Rome';
 const ORA_PREDEFINITA = 7;
+const FINESTRA_SENZA_ARCHIVIO_ORE = 2;
 const OGGETTO = 'Vocalba – report del';
 const REPO = 'aliosciapericoli-collab/chatbot-nazareth';
 const BRANCH_PREDEFINITO = 'claude/charming-shannon-7pom25';
@@ -234,7 +235,11 @@ function creaReportGiornaliero({
   async function controlla() {
     if (!attivo || inCorso) return false;
     const adesso = now();
-    if (Number(formatInTimeZone(adesso, timezone, 'H')) < ora) return false;
+    const oraAdesso = Number(formatInTimeZone(adesso, timezone, 'H'));
+    if (oraAdesso < ora) return false;
+    // Senza archivio l'invio è ricordato solo in memoria: fuori dalla finestra del mattino un
+    // riavvio (es. un deploy nel pomeriggio) rimanderebbe il report di ieri.
+    if (!archivio?.attivo && oraAdesso >= ora + FINESTRA_SENZA_ARCHIVIO_ORE) return false;
     const periodo = periodoIeri(adesso, timezone);
     if (ultimoGiornoInviato === periodo.giorno) return false;
     inCorso = true;

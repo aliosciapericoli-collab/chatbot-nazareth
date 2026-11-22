@@ -101,6 +101,18 @@ describe('report giornaliero', () => {
     assert.equal(email.length, 1);
   });
 
+  test('senza archivio, nel pomeriggio (es. dopo un deploy) non rimanda il report', async () => {
+    const email = [];
+    const report = creaReportGiornaliero({
+      archivio: { attivo: false },
+      inviaEmail: async (e) => email.push(e),
+      destinatario: 'gestore@example.com',
+      now: () => new Date('2026-11-22T12:30:00Z'), // 13:30 a Roma
+    });
+    assert.equal(await report.controlla(), false);
+    assert.equal(email.length, 0);
+  });
+
   test('prima dell\'ora indicata non parte nulla', async () => {
     const email = [];
     const report = creaReportGiornaliero({
