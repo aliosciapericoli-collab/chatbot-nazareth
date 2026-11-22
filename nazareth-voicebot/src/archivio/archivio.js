@@ -54,6 +54,10 @@ CREATE TABLE IF NOT EXISTS vocalba_mancanti (
   domanda   text NOT NULL
 );
 CREATE INDEX IF NOT EXISTS vocalba_mancanti_ts ON vocalba_mancanti (ts DESC);
+CREATE TABLE IF NOT EXISTS vocalba_report (
+  giorno   date PRIMARY KEY,
+  inviato  timestamptz NOT NULL DEFAULT now()
+);
 `;
 
 // Riga della chiamata: si crea al primo evento e poi si aggiorna.
@@ -94,6 +98,9 @@ function archivioSpento() {
     email: nulla,
     mancante: nulla,
     mancanti: vuoto,
+    datiPeriodo: vuoto,
+    reportGiaInviato: async () => false,
+    segnaReport: async () => true,
     sincronizza: vuoto,
     pulisci: vuoto,
     elenco: vuoto,
@@ -219,6 +226,40 @@ function creaArchivio({ databaseUrl, pool, giorni = GIORNI_PREDEFINITI, log = ()
       [Math.min(Math.max(Number(limite) || 50, 1), 200)]
     );
     return r.rows.map((m) => ({ ts: m.ts.toISOString(), domanda: m.domanda, chiamata: m.call_sid }));
+  }
+
+  /**
+   * Dati di un periodo per il report giornaliero: chiamate, domande senza risposta e
+   * frasi dei clienti (per l'analisi delle richieste).
+   * @param {{ da: Date, a: Date }} periodo
+   */
+  async function datiPeriodo({ da, a }) {
+    await pronto();
+    const c = await db.query('SELECT * FROM vocalba_chiamate WHERE inizio >= $1 AND inizio < $2 ORDER BY inizio', [da, a]);
+    const m = await db.query('SELECT ts, domanda FROM vocalba_mancanti WHERE ts >= $1 AND ts < $2 ORDER BY ts', [da, a]);
+    const f = await db.query(
+      "SELECT call_sid, testo FROM vocalba_messaggi WHERE ruolo = 'cliente' AND ts >= $1 AND ts < $2 ORDER BY call_sid, id LIMIT 400",
+      [da, a]
+    );
+    return {
+      chiamate: c.rows.map(riga),
+      mancanti: m.rows.map((r) => ({ ts: r.ts.toISOString(), domanda: r.domanda })),
+      frasiClienti: f.rows.map((r) => ({ chiamata: r.call_sid, testo: r.testo })),
+    };
+  }
+
+  /** true se il report di quel giorno (yyyy-MM-dd) è già partito: evita doppioni ai riavvii. */
+  async function reportGiaInviato(giorno) {
+    await pronto();
+    const r = await db.query('SELECT 1 FROM vocalba_report WHERE giorno = $1', [giorno]);
+    return r.rows.length > 0;
+  }
+
+  /** Segna il report come inviato; false se un altro processo l'ha già segnato. */
+  async function segnaReport(giorno) {
+    await pronto();
+    const r = await db.query('INSERT INTO vocalba_report (giorno) VALUES ($1) ON CONFLICT DO NOTHING', [giorno]);
+    return r.rowCount > 0;
   }
 
   /**
@@ -365,6 +406,9 @@ function creaArchivio({ databaseUrl, pool, giorni = GIORNI_PREDEFINITI, log = ()
     email,
     mancante,
     mancanti,
+    datiPeriodo,
+    reportGiaInviato,
+    segnaReport,
     sincronizza,
     pulisci,
     elenco,

@@ -15,6 +15,8 @@ const { creaDashboard } = require('./src/dashboard');
 const { creaNotificatoreRichiamata, componiEmail } = require('./src/notifiche/email-richiamata');
 const { creaArchivio } = require('./src/archivio/archivio');
 const { creaSegnalatoreMancanti } = require('./src/notifiche/informazioni-mancanti');
+const { creaReportGiornaliero } = require('./src/notifiche/report-giornaliero');
+const Anthropic = require('@anthropic-ai/sdk');
 const { CLIENT_NAME } = require('./src/marchio');
 const { creaAssistenteDemo, MESSAGGI_DEMO, stessoNumero } = require('./src/demo/linea-demo');
 const { creaClientWuBook } = require('./src/disponibilita/wubook');
@@ -107,6 +109,23 @@ function createApp({
     log,
   });
 
+  // Report del mattino (REPORT_EMAIL_TO, altrimenti l'indirizzo delle domande senza risposta):
+  // statistiche del giorno prima, domande senza risposta e prompt pronto per Claude Code.
+  const destinatarioReport = process.env.REPORT_EMAIL_TO || destinatarioMancanti;
+  const reportGiornaliero = process.env.REPORT_ATTIVO === 'false' ? null : creaReportGiornaliero({
+    archivio,
+    registroTwilio,
+    mancantiRecenti: segnalatoreMancanti.recenti,
+    inviaEmail: notificatore.configurato ? notificatore.inviaTesto : null,
+    destinatario: destinatarioReport,
+    client: process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null,
+    model: process.env.REPORT_MODEL || 'claude-haiku-4-5-20251001',
+    cliente: CLIENT_NAME,
+    branch: process.env.RENDER_GIT_BRANCH || undefined,
+    ora: Number.parseInt(process.env.REPORT_ORA, 10) || undefined,
+    log,
+  });
+
   const inoltroReception = process.env.RECEPTION_FORWARD !== 'false';
   const maxTurni = Number.parseInt(process.env.CONVERSATION_MAX_TURNS, 10) || 10;
 
@@ -190,6 +209,7 @@ function createApp({
 
   app.use(provider.router(instradamento));
 
+  app.locals.reportGiornaliero = reportGiornaliero;
   return app;
 }
 
@@ -227,7 +247,13 @@ if (require.main === module) {
   } else {
     console.warn('DATABASE_URL non impostato: le conversazioni non vengono archiviate.');
   }
-  const server = createApp({ provider, registroTwilio, archivio }).listen(PORT, () => {
+  const app = createApp({ provider, registroTwilio, archivio });
+  const report = app.locals.reportGiornaliero;
+  if (report?.attivo) {
+    console.log(`Report giornaliero attivo: ogni mattina dalle ${report.ora} a ${report.destinatario}.`);
+    report.avvia();
+  }
+  const server = app.listen(PORT, () => {
     console.log(`nazareth-voicebot in ascolto sulla porta ${PORT} (provider: ${provider.nome})`);
   });
   // Voce in streaming: il WebSocket di ConversationRelay vive sullo stesso server.

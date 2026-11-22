@@ -398,6 +398,10 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `DASHBOARD_PASSWORD`        | Password della dashboard `/dashboard` (vuota = disattivata)     |
 | `DATABASE_URL`              | Postgres dell'archivio conversazioni (vuoto = non conservate)   |
 | `INFO_MANCANTI_EMAIL_TO`    | Email per le domande senza risposta (default: quella delle richiamate) |
+| `REPORT_EMAIL_TO`           | Email del report del mattino (default: quella delle domande senza risposta) |
+| `REPORT_ORA`                | Ora (Roma) dopo cui parte il report del giorno prima (default `7`) |
+| `REPORT_ATTIVO`             | `false` per spegnere il report del mattino |
+| `REPORT_MODEL`              | Modello Claude per l'analisi delle richieste (default Haiku 4.5) |
 | `VOICE_STREAMING`           | `true` = voce in streaming con ConversationRelay (default spenta) |
 | `RELAY_SILENZIO_MS`         | Attesa in streaming prima di "è ancora in linea?" (default 10000) |
 | `RELAY_TTS_PROVIDER` / `RELAY_VOICE` | Voce in streaming, se diversa da quella ricavata da `TTS_VOICE` |
