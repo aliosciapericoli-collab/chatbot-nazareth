@@ -234,7 +234,7 @@ describe('accoglienza e regole', () => {
   test('/voice a reception chiusa: prima frase con dichiarazione di assistente virtuale e avviso di trascrizione', async () => {
     const r = await postTwilio('/voice', { CallSid: 'CA_voice' });
     assert.equal(r.status, 200);
-    assert.match(r.body, /<Say [^>]*>Nazareth Residence, sono l'assistente virtuale: la reception ora è chiusa\. La chiamata viene trascritta automaticamente\. Come posso aiutarla\?/);
+    assert.match(r.body, /<Say [^>]*>Nazareth Residence, sono l'assistente virtuale: la reception ora è chiusa\. La chiamata viene trascritta automaticamente\. Può chiedermi tutto sul suo soggiorno: disponibilità e prezzi, colazione, parcheggio e servizi\. Mi dica pure\./);
     assert.match(r.body, /<Gather input="speech" language="it-IT"/);
   });
 

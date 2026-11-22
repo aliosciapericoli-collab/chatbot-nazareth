@@ -14,11 +14,15 @@ function avvisoTrascrizione(giorniConservazione = 0) {
   return `La chiamata viene trascritta e conservata ${periodo}.`;
 }
 
+// Invito iniziale: dice al chiamante cosa può chiedere, solo argomenti coperti dalla base di
+// conoscenza o dalla verifica WuBook. Breve: al telefono un benvenuto lungo stanca.
+const INVITO_DOMANDE = 'Può chiedermi tutto sul suo soggiorno: disponibilità e prezzi, colazione, parcheggio e servizi. Mi dica pure.';
+
 function creaIntro(giorniConservazione = 0) {
   const avviso = avvisoTrascrizione(giorniConservazione);
   return {
-    chiusa: `Nazareth Residence, sono l'assistente virtuale: la reception ora è chiusa. ${avviso} Come posso aiutarla?`,
-    occupata: `Nazareth Residence, sono l'assistente virtuale: la reception ora è occupata. ${avviso} Come posso aiutarla?`,
+    chiusa: `Nazareth Residence, sono l'assistente virtuale: la reception ora è chiusa. ${avviso} ${INVITO_DOMANDE}`,
+    occupata: `Nazareth Residence, sono l'assistente virtuale: la reception ora è occupata. ${avviso} ${INVITO_DOMANDE}`,
     continua: 'Come posso aiutarla?',
   };
 }
