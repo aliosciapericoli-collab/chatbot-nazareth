@@ -47,6 +47,13 @@ CREATE TABLE IF NOT EXISTS vocalba_email (
   esito         text NOT NULL
 );
 CREATE INDEX IF NOT EXISTS vocalba_email_chiamata ON vocalba_email (call_sid);
+CREATE TABLE IF NOT EXISTS vocalba_mancanti (
+  id        bigserial PRIMARY KEY,
+  call_sid  text NOT NULL REFERENCES vocalba_chiamate (call_sid) ON DELETE CASCADE,
+  ts        timestamptz NOT NULL DEFAULT now(),
+  domanda   text NOT NULL
+);
+CREATE INDEX IF NOT EXISTS vocalba_mancanti_ts ON vocalba_mancanti (ts DESC);
 `;
 
 // Riga della chiamata: si crea al primo evento e poi si aggiorna.
@@ -85,6 +92,8 @@ function archivioSpento() {
     evento: nulla,
     trascrivi: nulla,
     email: nulla,
+    mancante: nulla,
+    mancanti: vuoto,
     sincronizza: vuoto,
     pulisci: vuoto,
     elenco: vuoto,
@@ -193,6 +202,25 @@ function creaArchivio({ databaseUrl, pool, giorni = GIORNI_PREDEFINITI, log = ()
     });
   }
 
+  /** Domanda a cui la base di conoscenza non risponde (riassunta dal bot, senza dati personali). */
+  function mancante(chiamataId, domanda) {
+    if (!domanda) return;
+    accoda(chiamataId, 'mancante', async () => {
+      await db.query(ASSICURA, [chiamataId]);
+      await db.query('INSERT INTO vocalba_mancanti (call_sid, domanda) VALUES ($1, $2)', [chiamataId, testoLimitato(domanda)]);
+    });
+  }
+
+  /** Ultime domande senza risposta, dalla più recente. */
+  async function mancanti({ limite = 50 } = {}) {
+    await pronto();
+    const r = await db.query(
+      'SELECT ts, domanda, call_sid FROM vocalba_mancanti ORDER BY ts DESC LIMIT $1',
+      [Math.min(Math.max(Number(limite) || 50, 1), 200)]
+    );
+    return r.rows.map((m) => ({ ts: m.ts.toISOString(), domanda: m.domanda, chiamata: m.call_sid }));
+  }
+
   /**
    * Sincronizza il registro del provider: ogni chiamata ricevuta entra nell'archivio,
    * anche quelle chiuse prima di parlare, con durata, stato e costo.
@@ -278,10 +306,12 @@ function creaArchivio({ databaseUrl, pool, giorni = GIORNI_PREDEFINITI, log = ()
     if (!c.rows.length) return null;
     const messaggi = await db.query('SELECT ts, ruolo, testo FROM vocalba_messaggi WHERE call_sid = $1 ORDER BY id', [chiamataId]);
     const email = await db.query('SELECT ts, destinatario, oggetto, testo, esito FROM vocalba_email WHERE call_sid = $1 ORDER BY id', [chiamataId]);
+    const senzaRisposta = await db.query('SELECT domanda FROM vocalba_mancanti WHERE call_sid = $1 ORDER BY id', [chiamataId]);
     return {
       ...riga(c.rows[0]),
       messaggi: messaggi.rows.map((m) => ({ ts: m.ts.toISOString(), ruolo: m.ruolo, testo: m.testo })),
       email: email.rows.map((e) => ({ ts: e.ts.toISOString(), destinatario: e.destinatario, oggetto: e.oggetto, testo: e.testo, esito: e.esito })),
+      mancanti: senzaRisposta.rows.map((m) => m.domanda),
     };
   }
 
@@ -333,6 +363,8 @@ function creaArchivio({ databaseUrl, pool, giorni = GIORNI_PREDEFINITI, log = ()
     evento,
     trascrivi,
     email,
+    mancante,
+    mancanti,
     sincronizza,
     pulisci,
     elenco,

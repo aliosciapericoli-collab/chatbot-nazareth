@@ -328,11 +328,28 @@
       ['Tempo massimo di risposta', secondi(c.timeoutClaudeMs)],
       ['Domande massime per chiamata', c.maxTurni],
       ['Archivio conversazioni', c.archivioGiorni ? `attivo, ${c.archivioGiorni} giorni` : 'non collegato'],
+      ['Email domande senza risposta', c.emailMancanti || 'non configurata'],
       ['Versione', c.versione || '—'],
     ];
     sostituisci('impostazioni', righe.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: String(v) })]));
 
     testo('piede', `${marchio.app} · ${marchio.cliente} — aggiornato alle ${fmtOraSec.format(new Date(m.generatoIl))}, dati del servizio dal ${fmtData.format(new Date(m.datiDal))}. ${c.archivioGiorni ? `Le conversazioni restano in archivio ${c.archivioGiorni} giorni.` : 'Nessuna conversazione viene conservata.'}`);
+  }
+
+  // ---- Domande senza risposta ----
+  async function caricaMancanti(emailMancanti) {
+    const risposta = await fetch('/dashboard/api/mancanti', { cache: 'no-store', credentials: 'same-origin' });
+    if (risposta.status === 401) return window.location.reload();
+    if (!risposta.ok) return;
+    const { mancanti, fonte } = await risposta.json();
+    const nota = emailMancanti ? `ogni nuova domanda arriva per email a ${emailMancanti}` : 'email non configurata';
+    testo('mancanti-sotto', `${mancanti.length ? plurale(mancanti.length, 'domanda', 'domande') : 'nessuna domanda'} · ${nota}${fonte === 'memoria' ? ' · dal riavvio del servizio' : ''}`);
+    sostituisci('mancanti', mancanti.length
+      ? mancanti.map((m) => el('li', {}, [
+        el('span', { class: 'domanda', text: m.domanda }),
+        el('span', { class: 'quando', text: fmtData.format(new Date(m.ts)) }),
+      ]))
+      : el('li', { class: 'vuoto', text: 'Finora il bot ha trovato tutte le risposte nella base di conoscenza.' }));
   }
 
   // ---- Archivio conversazioni ----
@@ -424,6 +441,7 @@
         c.richiamata ? badge(RICHIAMATE[c.richiamata]) : null,
         c.preventivo ? el('span', { class: 'chip euro', text: `Preventivo da ${fmtEuro.format(c.preventivo)}` }) : null,
         ...(c.argomenti || []).map((a) => el('span', { class: 'chip', text: a })),
+        ...(c.mancanti || []).map((m) => el('span', { class: 'chip', text: `Senza risposta: ${m}` })),
       ].filter(Boolean);
       const contenuto = [fatti.length ? el('div', { class: 'fatti' }, fatti) : null];
 
@@ -465,7 +483,9 @@
       const risposta = await fetch('/dashboard/api/stato', { cache: 'no-store', credentials: 'same-origin' });
       if (risposta.status === 401) return window.location.reload();
       if (!risposta.ok) throw new Error(`HTTP ${risposta.status}`);
-      disegna(await risposta.json());
+      const stato = await risposta.json();
+      disegna(stato);
+      await caricaMancanti(stato.configurazione.emailMancanti).catch(() => {});
       // L'archivio si ricarica da solo solo sulla prima pagina e senza ricerca in corso.
       if (!archivio.cerca && archivio.caricate <= 25) await caricaArchivio().catch(() => {});
     } catch (error) {

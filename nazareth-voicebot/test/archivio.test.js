@@ -103,7 +103,7 @@ describe('archivio: Postgres', { skip: TEST_DB ? false : 'TEST_DATABASE_URL non 
 
   before(async () => {
     pool = new Pool({ connectionString: TEST_DB });
-    await pool.query('DROP TABLE IF EXISTS vocalba_email, vocalba_messaggi, vocalba_chiamate');
+    await pool.query('DROP TABLE IF EXISTS vocalba_mancanti, vocalba_email, vocalba_messaggi, vocalba_chiamate');
   });
 
   after(async () => {
@@ -256,5 +256,27 @@ describe('archivio: Postgres', { skip: TEST_DB ? false : 'TEST_DATABASE_URL non 
     assert.equal(log.length, 1);
     assert.equal(log[0][1], 'archivio_errore');
     assert.doesNotMatch(JSON.stringify(log), /riservato/);
+  });
+});
+
+describe('archivio: domande senza risposta (Postgres)', { skip: TEST_DB ? false : 'TEST_DATABASE_URL non impostato' }, () => {
+  test('si salvano, compaiono nel dettaglio e si cancellano con la chiamata', async () => {
+    const pool = new Pool({ connectionString: TEST_DB });
+    try {
+      const archivio = creaArchivio({ pool, giorni: 90, log: () => {} });
+      archivio.evento('CA_manca_db', 'assistente', { motivo: 'chiusa' });
+      archivio.mancante('CA_manca_db', 'C\'è una piscina?');
+      await archivio.attendi();
+
+      const elenco = await archivio.mancanti();
+      assert.ok(elenco.some((m) => m.domanda === 'C\'è una piscina?' && m.chiamata === 'CA_manca_db'));
+      assert.deepEqual((await archivio.dettaglio('CA_manca_db')).mancanti, ['C\'è una piscina?']);
+
+      await pool.query("UPDATE vocalba_chiamate SET inizio = now() - interval '100 days' WHERE call_sid = 'CA_manca_db'");
+      await archivio.pulisci();
+      assert.ok(!(await archivio.mancanti()).some((m) => m.chiamata === 'CA_manca_db'));
+    } finally {
+      await pool.end();
+    }
   });
 });

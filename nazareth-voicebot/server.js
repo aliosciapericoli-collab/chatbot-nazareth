@@ -14,6 +14,8 @@ const { creaRegistroTwilio } = require('./src/dashboard/registro-twilio');
 const { creaDashboard } = require('./src/dashboard');
 const { creaNotificatoreRichiamata, componiEmail } = require('./src/notifiche/email-richiamata');
 const { creaArchivio } = require('./src/archivio/archivio');
+const { creaSegnalatoreMancanti } = require('./src/notifiche/informazioni-mancanti');
+const { CLIENT_NAME } = require('./src/marchio');
 const { creaAssistenteDemo, MESSAGGI_DEMO, stessoNumero } = require('./src/demo/linea-demo');
 const { creaClientWuBook } = require('./src/disponibilita/wubook');
 const { creaStrumentoDisponibilita } = require('./src/disponibilita/strumento');
@@ -94,6 +96,17 @@ function createApp({
     return inviata;
   };
 
+  // Domande senza risposta nella base di conoscenza: email a chi gestisce il bot
+  // (INFO_MANCANTI_EMAIL_TO, altrimenti lo stesso indirizzo delle richiamate).
+  const destinatarioMancanti = process.env.INFO_MANCANTI_EMAIL_TO || notificatore.destinatario;
+  const segnalatoreMancanti = creaSegnalatoreMancanti({
+    inviaEmail: notificatore.configurato ? notificatore.inviaTesto : null,
+    destinatario: destinatarioMancanti,
+    archivio,
+    cliente: CLIENT_NAME,
+    log,
+  });
+
   const inoltroReception = process.env.RECEPTION_FORWARD !== 'false';
   const maxTurni = Number.parseInt(process.env.CONVERSATION_MAX_TURNS, 10) || 10;
 
@@ -116,6 +129,7 @@ function createApp({
     log,
     trascrivi: archivio.trascrivi,
     giorniConservazione: archivio.attivo ? archivio.giorni : 0,
+    segnalaMancante: segnalatoreMancanti.segnala,
   });
 
   // Linea demo (DEMO_PHONE_NUMBER): stesso server, ma struttura dimostrativa. Le sue chiamate
@@ -155,6 +169,7 @@ function createApp({
     metriche,
     registroTwilio,
     archivio,
+    mancanti: segnalatoreMancanti,
     configurazione: () => ({
       provider: provider.nome,
       modello: assistente.model ?? null,
@@ -169,6 +184,7 @@ function createApp({
       versione: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
       archivioGiorni: archivio.attivo ? archivio.giorni : null,
       lineaDemo: numeroDemo,
+      emailMancanti: segnalatoreMancanti.configurato ? destinatarioMancanti : null,
     }),
   }));
 

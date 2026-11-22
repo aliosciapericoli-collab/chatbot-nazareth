@@ -16,6 +16,9 @@ const FINE_CONVERSAZIONE = '[FINE]';
 // Blocco con i dati della richiamata confermati dal chiamante; non viene letto al telefono.
 const APRI_RICHIAMATA = '[RICHIAMATA]';
 const CHIUDI_RICHIAMATA = '[/RICHIAMATA]';
+// Domanda a cui la base di conoscenza non risponde: va segnalata a chi gestisce il bot.
+const APRI_MANCA = '[MANCA]';
+const CHIUDI_MANCA = '[/MANCA]';
 
 // Frase obbligatoria dopo ogni prezzo, scritta per la sintesi vocale.
 const FRASE_PREZZI = 'È il prezzo del sito in questo momento e può cambiare: si prenota su nazarethresidence punto com.';
@@ -57,7 +60,7 @@ Regole:
 - Partenza posticipata: non confermarla mai; spiega che va chiesta alla reception la sera prima ed è concessa secondo disponibilità.
 - Se il chiamante chiede di parlare con un operatore o con una persona, ${operatore}
 - Se la frase del chiamante è incomprensibile, incompleta o sembra trascritta male, non tirare a indovinare: chiedi gentilmente di ripetere.
-- Se la risposta non è nella base di conoscenza, ${nonNoto}
+- Se la risposta non è nella base di conoscenza, ${nonNoto} Solo in quella risposta aggiungi in fondo il blocco ${APRI_MANCA}domanda${CHIUDI_MANCA} con la domanda del chiamante riassunta in poche parole, senza nomi, numeri di telefono o altri dati personali (per esempio ${APRI_MANCA}C'è una piscina?${CHIUDI_MANCA}). Il blocco non viene letto al chiamante. Non aggiungerlo per prezzi e disponibilità, prenotazioni, richieste di un operatore o frasi incomprensibili.
 - Dai sempre del lei al chiamante, con le formule di cortesia corrette: "Posso esserle utile in altro?", "La ricontattiamo", "Le auguro una buona serata". Sei tu che offri aiuto al chiamante: non dire mai "Può essere utile in altro?". Se il chiamante parla in un'altra lingua, rispondi nella sua lingua.
 
 Prezzi e disponibilità:
@@ -127,6 +130,19 @@ function estraiRichiamata(grezzo) {
       motivo: testoBreve(dati.motivo, 400),
     },
   };
+}
+
+/**
+ * Separa il blocco [MANCA]...[/MANCA] dal testo da leggere.
+ * @returns {{ parlato: string, mancante: string|null }}
+ */
+function estraiMancante(grezzo) {
+  const inizio = grezzo.indexOf(APRI_MANCA);
+  if (inizio === -1) return { parlato: grezzo, mancante: null };
+  const fine = grezzo.indexOf(CHIUDI_MANCA, inizio);
+  const contenuto = grezzo.slice(inizio + APRI_MANCA.length, fine === -1 ? undefined : fine);
+  const parlato = grezzo.slice(0, inizio) + (fine === -1 ? '' : grezzo.slice(fine + CHIUDI_MANCA.length));
+  return { parlato, mancante: testoBreve(contenuto, 200) };
 }
 
 // Dati della singola chiamata aggiunti in fondo al system prompt.
@@ -248,19 +264,20 @@ function creaAssistente({
       if (nonVerificati.length === 0) return risultato;
       return { testo: messaggioPrezzoNonVerificato, fine: false, richiamata: null, prezzoBloccato: true };
     };
-    const { parlato, richiamata } = estraiRichiamata(
+    const { parlato: senzaMancante, mancante } = estraiMancante(
       response.content
         .filter((block) => block.type === 'text')
         .map((block) => block.text)
         .join(' ')
     );
+    const { parlato, richiamata } = estraiRichiamata(senzaMancante);
     const fine = parlato.includes(FINE_CONVERSAZIONE);
     let testo = pulisciPerVoce(parlato.replaceAll(FINE_CONVERSAZIONE, ''));
     if (!testo) {
       throw new ClaudeRispostaNonValidaError(`testo vuoto (stop_reason ${response.stop_reason})`);
     }
     if (prezziDati) testo = conFrasiObbligatorie(testo);
-    return bloccaSeServe({ testo, fine, richiamata });
+    return { ...bloccaSeServe({ testo, fine, richiamata }), mancante };
   }
 
   async function eseguiStrumento(blocco, datiChiamata) {
@@ -329,6 +346,7 @@ module.exports = {
   SYSTEM_PROMPT_SENZA_RICHIAMATA,
   DEFAULT_MODEL,
   estraiRichiamata,
+  estraiMancante,
   contestoChiamata,
   conFrasiObbligatorie,
   importiInEuro,

@@ -70,6 +70,26 @@ function creaNotificatoreRichiamata({ host, port, user, pass, to, from, transpor
   const configurato = Boolean(transport || (host && mittente));
   let trasporto = transport;
 
+  function ottieniTrasporto() {
+    const porta = Number.parseInt(port, 10) || 587;
+    trasporto ??= nodemailer.createTransport({
+      host,
+      port: porta,
+      secure: porta === 465,
+      auth: user ? { user, pass } : undefined,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+    });
+    return trasporto;
+  }
+
+  /** Invio generico con lo stesso SMTP (per esempio le domande senza risposta). Lancia in caso di errore. */
+  async function inviaTesto({ to, subject, text }) {
+    if (!configurato) throw Object.assign(new Error('SMTP non configurato'), { code: 'SMTP_NON_CONFIGURATO' });
+    await ottieniTrasporto().sendMail({ from: mittente, to, subject, text });
+  }
+
   /** Non lancia mai: restituisce true se l'email è partita. */
   async function invia({ chiamataId, ...dati }) {
     if (!configurato) {
@@ -77,18 +97,8 @@ function creaNotificatoreRichiamata({ host, port, user, pass, to, from, transpor
       return false;
     }
     try {
-      const porta = Number.parseInt(port, 10) || 587;
-      trasporto ??= nodemailer.createTransport({
-        host,
-        port: porta,
-        secure: porta === 465,
-        auth: user ? { user, pass } : undefined,
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 20000,
-      });
       const { subject, text } = componiEmail({ ...dati, timezone });
-      await trasporto.sendMail({ from: mittente, to: destinatario, subject, text });
+      await ottieniTrasporto().sendMail({ from: mittente, to: destinatario, subject, text });
       log(chiamataId, 'richiamata_email_inviata');
       return true;
     } catch (error) {
@@ -98,7 +108,7 @@ function creaNotificatoreRichiamata({ host, port, user, pass, to, from, transpor
     }
   }
 
-  return { invia, configurato, destinatario };
+  return { invia, inviaTesto, configurato, destinatario };
 }
 
 module.exports = { creaNotificatoreRichiamata, componiEmail, DESTINATARIO_PREDEFINITO };

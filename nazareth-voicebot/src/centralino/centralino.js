@@ -81,6 +81,9 @@ function creaCentralino({
   giorniConservazione = 0,
   // Testi fissi sostituibili (INTRO, MESSAGGIO_RIPIEGO, ...), per esempio per la linea demo.
   messaggi = {},
+  // Domanda a cui la base di conoscenza non risponde: si segnala a chi gestisce il bot.
+  // Chiamata dopo la risposta al provider; non deve mai lanciare.
+  segnalaMancante = () => {},
 }) {
   const testi = {
     RICHIESTA_DOPO_SILENZIO,
@@ -220,8 +223,17 @@ function creaCentralino({
   }
 
   // Risposta finale di Claude: richiamata, congedo oppure nuovo ascolto.
-  function concludi(chiamataId, { testo: risposta, fine, richiamata, prezzoBloccato }, messages, numeroAffidabile) {
+  function concludi(chiamataId, { testo: risposta, fine, richiamata, prezzoBloccato, mancante }, messages, numeroAffidabile) {
     if (prezzoBloccato) log(chiamataId, 'prezzo_bloccato');
+    if (mancante) {
+      // Nei log solo l'evento: il testo della domanda va soltanto a chi gestisce il bot.
+      log(chiamataId, 'informazione_mancante');
+      setImmediate(() => {
+        Promise.resolve()
+          .then(() => segnalaMancante({ chiamataId, domanda: mancante, ts: Date.now() }))
+          .catch((error) => log(chiamataId, 'informazione_mancante_errore', { tipo: error?.name }));
+      });
+    }
     if (richiamata) {
       gestisciRichiamata(chiamataId, richiamata, [...messages, { role: 'assistant', content: risposta }], numeroAffidabile);
     }

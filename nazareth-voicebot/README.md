@@ -98,6 +98,20 @@ aggiorna l'informativa privacy della struttura (dati conservati, durata, fornito
 
 Test sul database: `TEST_DATABASE_URL=postgres://… npm test` (il database di prova viene svuotato).
 
+### Domande senza risposta
+
+Quando un cliente chiede qualcosa che non è nella base di conoscenza, il bot lo dice e rimanda ai
+contatti come sempre; in più aggiunge un blocco invisibile `[MANCA]domanda[/MANCA]` con la domanda
+riassunta, senza dati personali. Il server la toglie dal parlato e:
+
+- manda subito un'email con oggetto **"Vocalba – domanda senza risposta: …"** a
+  `INFO_MANCANTI_EMAIL_TO` (se vuota, all'indirizzo delle richiamate), con lo stesso SMTP;
+- la mostra in dashboard nella sezione **Domande senza risposta** e, con l'archivio attivo, la
+  salva in `vocalba_mancanti` (cancellata con la chiamata dopo `ARCHIVIO_GIORNI`).
+
+Chi gestisce il bot risponde con l'informazione giusta, che va aggiunta a `knowledge/nazareth.md`:
+la volta dopo il bot sa rispondere. Nei log resta solo l'evento `informazione_mancante`.
+
 ### Voce in streaming (ConversationRelay)
 
 Con `VOICE_STREAMING=true` la conversazione passa da Twilio **ConversationRelay**: Twilio
@@ -297,7 +311,7 @@ nazareth-voicebot/
 │   ├── demo/
 │   │   └── linea-demo.js      # linea demo pubblica: struttura dimostrativa Casa Aurora
 │   ├── archivio/
-│   │   └── archivio.js        # conversazioni, email e registro Twilio su Postgres
+│   │   └── archivio.js        # conversazioni, email, domande senza risposta e registro Twilio su Postgres
 │   ├── centralino/
 │   │   ├── centralino.js      # logica della chiamata (indipendente dal provider)
 │   │   ├── protocollo.js      # eventi e azioni neutre
@@ -313,7 +327,8 @@ nazareth-voicebot/
 │   │   ├── wubook.js          # client del motore WuBook: richiesta, lettura, cache
 │   │   └── strumento.js       # strumento verifica_disponibilita per Claude
 │   ├── notifiche/
-│   │   └── email-richiamata.js # email di richiamata alla reception (SMTP)
+│   │   ├── email-richiamata.js # email di richiamata alla reception (SMTP)
+│   │   └── informazioni-mancanti.js # email per le domande senza risposta
 │   ├── claude.js              # integrazione API Anthropic e system prompt
 │   ├── conversation-store.js  # storico conversazioni per chiamata
 │   └── knowledge-base.js      # caricamento di knowledge/nazareth.md
@@ -382,6 +397,7 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `SESSION_SECRET`            | Facoltativo: segreto aggiuntivo per le sessioni della dashboard |
 | `DASHBOARD_PASSWORD`        | Password della dashboard `/dashboard` (vuota = disattivata)     |
 | `DATABASE_URL`              | Postgres dell'archivio conversazioni (vuoto = non conservate)   |
+| `INFO_MANCANTI_EMAIL_TO`    | Email per le domande senza risposta (default: quella delle richiamate) |
 | `VOICE_STREAMING`           | `true` = voce in streaming con ConversationRelay (default spenta) |
 | `RELAY_SILENZIO_MS`         | Attesa in streaming prima di "è ancora in linea?" (default 10000) |
 | `RELAY_TTS_PROVIDER` / `RELAY_VOICE` | Voce in streaming, se diversa da quella ricavata da `TTS_VOICE` |

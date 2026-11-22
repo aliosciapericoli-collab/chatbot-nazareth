@@ -56,7 +56,7 @@ function leggiCookie(req, nome) {
  * @param {() => object} opzioni.configurazione impostazioni correnti da mostrare
  * @param {ReturnType<import('../archivio/archivio').creaArchivio>} [opzioni.archivio] conversazioni archiviate
  */
-function creaDashboard({ password, metriche, registroTwilio, configurazione, archivio = { attivo: false }, now = () => Date.now() }) {
+function creaDashboard({ password, metriche, registroTwilio, configurazione, archivio = { attivo: false }, mancanti = { recenti: () => [] }, now = () => Date.now() }) {
   const router = express.Router();
   const falliti = new Map(); // ip → { conteggio, dal }
 
@@ -160,6 +160,19 @@ function creaDashboard({ password, metriche, registroTwilio, configurazione, arc
       metriche: metriche.riepilogo(),
       twilio: await registroTwilio.ultimeChiamate(),
     });
+  });
+
+  // Domande a cui il bot non ha saputo rispondere: dall'archivio se c'è, altrimenti dalla
+  // memoria (che riparte a ogni riavvio).
+  router.get('/dashboard/api/mancanti', async (req, res) => {
+    if (!sessioneValida(req)) return res.status(401).json({ errore: 'sessione_scaduta' });
+    try {
+      const elenco = archivio.attivo ? await archivio.mancanti({ limite: 50 }) : mancanti.recenti().slice(0, 50);
+      res.json({ fonte: archivio.attivo ? 'archivio' : 'memoria', mancanti: elenco.map(({ ts, domanda }) => ({ ts, domanda })) });
+    } catch (error) {
+      console.log(JSON.stringify({ ts: new Date().toISOString(), evento: 'archivio_errore', operazione: 'mancanti', codice: error.code ?? error.name }));
+      res.status(503).json({ errore: 'archivio_non_disponibile' });
+    }
   });
 
   // Archivio delle conversazioni: elenco a pagine con ricerca e dettaglio di una chiamata.
