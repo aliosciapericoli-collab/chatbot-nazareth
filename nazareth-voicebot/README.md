@@ -171,7 +171,7 @@ Con l'adattatore Twilio, Twilio chiama `POST /voice` all'arrivo di ogni chiamata
 
 Quando il chiamante chiede qualcosa che il bot non può dare (prezzi, disponibilità,
 prenotazioni, gruppi, casi particolari) o chiede un operatore, il bot offre di lasciare un
-messaggio alla reception: dalle sette del mattino successivo la reception lo richiama (senza
+messaggio alla reception: dalle sette e trenta del mattino successivo la reception lo richiama (senza
 orario preciso), oppure può richiamare lui, per confermare la prenotazione direttamente con
 l'operatore.
 

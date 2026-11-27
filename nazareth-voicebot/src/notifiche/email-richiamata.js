@@ -42,7 +42,7 @@ function componiEmail({ richiamata, numeroChiamante, messages, ricevutaIl, timez
     conversazione,
     '',
     '---',
-    'Al cliente è stato detto che dalle 7:00 del mattino successivo la reception lo richiama (senza un orario preciso),',
+    'Al cliente è stato detto che dalle 7:30 del mattino successivo la reception lo richiama (senza un orario preciso),',
     'oppure che può richiamare lui, per confermare la prenotazione direttamente con l\'operatore,',
     'e che i suoi dati servono solo per ricontattarlo.',
     'Dopo la richiamata cancellate questa email.'
