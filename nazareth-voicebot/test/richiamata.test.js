@@ -310,15 +310,19 @@ describe('richiamata: funzioni di supporto', () => {
       assert.match(prompt, /non dire mai "Può essere utile in altro\?"/);
       assert.doesNotMatch(prompt, /può esserle utile|chiedi se può/);
     }
-    assert.match(SYSTEM_PROMPT, /che la ricontattiamo in orario di apertura/);
+    assert.match(SYSTEM_PROMPT, /la reception la richiama la mattina dalle otto e trenta, per la prenotazione o per altre informazioni/);
+    // Ultima offerta prima di chiudere, una sola volta e solo se non c'è già una richiamata.
+    assert.match(SYSTEM_PROMPT, /Prima di salutarla: se non riesce a prenotare dal sito, può lasciarmi nome e numero e la reception la richiama la mattina dalle otto e trenta\. Vuole lasciare un messaggio\?/);
+    assert.match(SYSTEM_PROMPT, /Fai questa offerta una sola volta per chiamata\./);
+    assert.doesNotMatch(SYSTEM_PROMPT_SENZA_RICHIAMATA, /Prima di salutarla/);
     assert.match(SYSTEM_PROMPT, /Chiudi con: "Posso esserle utile in altro\?"/);
     assert.equal(RICHIESTA_DOPO_SILENZIO.continua, 'È ancora in linea? Posso esserle utile in altro?');
   });
 
   test('il prompt descrive la richiamata e mantiene i limiti', () => {
-    assert.match(SYSTEM_PROMPT, /Se vuole, lascio un messaggio alla reception e la ricontattiamo in orario di apertura, dalle sette alle venti\./);
+    assert.match(SYSTEM_PROMPT, /Se vuole, mi lascia nome e numero e la reception la richiama la mattina dalle otto e trenta\./);
     assert.match(SYSTEM_PROMPT, /I suoi dati servono solo per ricontattarla\./);
-    assert.match(SYSTEM_PROMPT, /Non promettere mai un orario preciso di richiamata/);
+    assert.match(SYSTEM_PROMPT, /A parte "la mattina dalle otto e trenta", non promettere mai un orario preciso di richiamata/);
     assert.match(SYSTEM_PROMPT, /Fuori dalla richiamata descritta più sotto, non chiedere né annotare nomi/);
     assert.doesNotMatch(SYSTEM_PROMPT, /Non chiedere né annotare nomi, date, numeri di telefono/);
   });
