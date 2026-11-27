@@ -59,6 +59,17 @@ function creaMetriche({ maxChiamate = 500, maxErrori = 20, now = () => Date.now(
   }
 
   function registra(chiamataId, evento, dettagli = {}) {
+    // Verifica periodica dell'accesso SMTP: non appartiene a nessuna chiamata.
+    if (evento === 'smtp_verifica_ok') {
+      segnaOk('email');
+      return;
+    }
+    if (evento === 'smtp_verifica_errore') {
+      segnaErrore('email');
+      errori.push({ ts: now(), chiamata: '—', evento, tipo: dettagli.codice ?? dettagli.tipo ?? 'smtp', messaggio: 'Accesso SMTP rifiutato: richiamata sospesa, controllare SMTP_USER e SMTP_PASS' });
+      if (errori.length > maxErrori) errori.shift();
+      return;
+    }
     if (!chiamataId) return;
     const r = record(chiamataId);
 

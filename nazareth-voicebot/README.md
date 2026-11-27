@@ -191,7 +191,13 @@ conversazione. L'email parte alla conferma e non a fine telefonata, perché Twil
 il server quando il chiamante riaggancia. Una sola email per chiamata.
 
 Finché `SMTP_HOST` non è impostato il bot **non offre** la richiamata, per non promettere
-messaggi che nessuno riceverebbe. Se l'invio fallisce, il chiamante non se ne accorge:
+messaggi che nessuno riceverebbe. Allo stesso modo il server prova l'accesso SMTP all'avvio e poi
+ogni `SMTP_VERIFICA_MINUTI` minuti (default 15), senza inviare nulla: se il server di posta
+rifiuta le credenziali (per esempio una password per app di Gmail revocata) o un invio fallisce
+per credenziali, la richiamata viene **sospesa** e il bot rimanda a WhatsApp ed email. Riprende
+da sola alla prima verifica riuscita. Nei log restano solo i cambi di stato
+(`smtp_verifica_errore` / `smtp_verifica_ok`) e la dashboard mostra "Accesso negato: richiamata
+sospesa". Se l'invio fallisce, il chiamante non se ne accorge:
 resta un log con il solo CallSid e un codice tecnico, e la dashboard mostra "Email NON inviata".
 Senza archivio il testo della conversazione passa solo dalla memoria del server all'email; con
 l'archivio attivo ne resta una copia identica per `ARCHIVIO_GIORNI` giorni. Dopo la richiamata
@@ -391,6 +397,7 @@ npm run simula  # chiamata simulata da terminale con Claude vero
 | `SMTP_USER` / `SMTP_PASS`   | Credenziali SMTP                                               |
 | `CALLBACK_EMAIL_TO`         | Destinatario (default `info@nazarethresidence.com`)            |
 | `CALLBACK_EMAIL_FROM`       | Mittente (default `SMTP_USER`)                                 |
+| `SMTP_VERIFICA_MINUTI`      | Ogni quanti minuti verificare l'accesso SMTP (default 15)      |
 | `WUBOOK_ENABLED`            | `false` disattiva prezzi e disponibilità (default attivi)      |
 | `WUBOOK_EP`                 | Id del motore di prenotazione (default `17104f2c`)             |
 | `WUBOOK_TIMEOUT_MS`         | Timeout delle richieste a WuBook (default 4000)                |

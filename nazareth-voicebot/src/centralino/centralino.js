@@ -50,7 +50,8 @@ function logPredefinito(chiamataId, evento, dettagli = {}) {
  * @param {number} opzioni.limiteRispostaMs tempo massimo per la risposta dell'assistente
  * @param {(dati: object) => Promise<boolean>} [opzioni.notificaRichiamata] invio della richiesta
  *   di richiamata alla reception; chiamata dopo la risposta al provider, non deve mai lanciare
- * @param {boolean} [opzioni.richiamataDisponibile] se false il bot non offre la richiamata
+ * @param {boolean|(() => boolean)} [opzioni.richiamataDisponibile] se false il bot non offre la richiamata;
+ *   con una funzione si rilegge a ogni domanda (per esempio quando l'accesso SMTP smette di funzionare)
  * @param {number} [opzioni.limiteVerificaMs] tempo massimo per completare una verifica con strumenti
  * @param {string[]} [opzioni.numeriEsclusi] numeri della struttura da non proporre come recapito
  * @param {(chiamataId: string, ruolo: 'cliente'|'assistente', testo: string, extra?: { numero?: string }) => void} [opzioni.trascrivi]
@@ -69,7 +70,7 @@ function creaCentralino({
   lingua = 'it-IT',
   isReceptionChiusa = () => orarioReception(),
   notificaRichiamata = async () => false,
-  // La richiamata si offre solo se c'è un modo di consegnarla (email configurata).
+  // La richiamata si offre solo se c'è un modo di consegnarla (email configurata e funzionante).
   richiamataDisponibile = false,
   numeriEsclusi = [],
   // Tempo massimo per completare una verifica (strumenti + risposta finale di Claude),
@@ -98,6 +99,7 @@ function creaCentralino({
   // Verifiche in corso: la risposta arriva con l'evento "prosegui".
   const verificheInCorso = new Map(); // chiamataId → { promessa, messages, numeroAffidabile, inizio }
   const parla = (testo) => azioni.parla(testo, lingua);
+  const richiamataOra = typeof richiamataDisponibile === 'function' ? richiamataDisponibile : () => richiamataDisponibile;
   const ascolta = (motivo, tentativo) => azioni.ascolta(lingua, { motivo, tentativo });
 
   function chiudi(chiamataId, testo, causa) {
@@ -188,7 +190,7 @@ function creaCentralino({
     const numeroAffidabile = numeroProponibile(numeroChiamante, numeriEsclusi) ? normalizzaNumero(numeroChiamante) : null;
     const datiChiamata = {
       numeroChiamanteLetto: numeroAffidabile ? leggiNumero(numeroAffidabile) : null,
-      richiamataDisponibile,
+      richiamataDisponibile: Boolean(richiamataOra()),
     };
 
     const inizio = Date.now();

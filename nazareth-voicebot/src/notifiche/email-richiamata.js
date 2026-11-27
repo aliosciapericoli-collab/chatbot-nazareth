@@ -85,6 +85,46 @@ function creaNotificatoreRichiamata({ host, port, user, pass, to, from, transpor
     return trasporto;
   }
 
+  // Esito dell'ultimo accesso al server SMTP: null = non ancora verificato, true = funziona,
+  // false = rifiutato o irraggiungibile. Finché è false il bot non offre la richiamata.
+  let accessoOk = null;
+
+  // Si registra solo il cambio di stato, per non riempire i log a ogni verifica.
+  function aggiornaAccesso(ok, dettagli) {
+    if (ok === accessoOk) return;
+    accessoOk = ok;
+    log(null, ok ? 'smtp_verifica_ok' : 'smtp_verifica_errore', dettagli);
+  }
+
+  /** Prova l'accesso al server SMTP senza inviare nulla. Non lancia mai: restituisce l'esito. */
+  async function verifica() {
+    if (!configurato) return false;
+    const t = ottieniTrasporto();
+    // I trasporti simulati dei test possono non avere verify: lo stato resta com'è.
+    if (typeof t.verify !== 'function') return accessoOk !== false;
+    try {
+      await t.verify();
+      aggiornaAccesso(true);
+      return true;
+    } catch (error) {
+      // Solo codici tecnici: il messaggio d'errore SMTP può contenere indirizzi o testo.
+      aggiornaAccesso(false, { tipo: error.name, codice: error.code, risposta: error.responseCode });
+      return false;
+    }
+  }
+
+  /** Verifica subito e poi a intervalli; restituisce la funzione che ferma le verifiche. */
+  function avviaVerifica({ ogniMs = 15 * 60 * 1000 } = {}) {
+    if (!configurato) return () => {};
+    verifica();
+    const timer = setInterval(verifica, ogniMs);
+    timer.unref?.();
+    return () => clearInterval(timer);
+  }
+
+  /** La richiamata si offre solo se l'email è configurata e l'ultimo accesso SMTP non è fallito. */
+  const disponibile = () => configurato && accessoOk !== false;
+
   /** Invio generico con lo stesso SMTP (per esempio le domande senza risposta). Lancia in caso di errore. */
   async function inviaTesto({ to, subject, text }) {
     if (!configurato) throw Object.assign(new Error('SMTP non configurato'), { code: 'SMTP_NON_CONFIGURATO' });
@@ -101,15 +141,19 @@ function creaNotificatoreRichiamata({ host, port, user, pass, to, from, transpor
       const { subject, text } = componiEmail({ ...dati, timezone });
       await ottieniTrasporto().sendMail({ from: mittente, to: destinatario, subject, text });
       log(chiamataId, 'richiamata_email_inviata');
+      aggiornaAccesso(true);
       return true;
     } catch (error) {
       // Solo codici tecnici: il messaggio d'errore SMTP può contenere indirizzi o testo.
-      log(chiamataId, 'richiamata_email_errore', { tipo: error.name, codice: error.code, risposta: error.responseCode });
+      const dettagli = { tipo: error.name, codice: error.code, risposta: error.responseCode };
+      log(chiamataId, 'richiamata_email_errore', dettagli);
+      // Credenziali rifiutate: inutile promettere altre richiamate finché non si risolve.
+      if (error.code === 'EAUTH') aggiornaAccesso(false, dettagli);
       return false;
     }
   }
 
-  return { invia, inviaTesto, configurato, destinatario };
+  return { invia, inviaTesto, verifica, avviaVerifica, disponibile, configurato, destinatario };
 }
 
 module.exports = { creaNotificatoreRichiamata, componiEmail, DESTINATARIO_PREDEFINITO };

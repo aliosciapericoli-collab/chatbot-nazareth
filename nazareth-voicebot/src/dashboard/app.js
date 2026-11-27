@@ -221,13 +221,15 @@
       let s = salute[id] || { stato: 'nessun_dato' };
       if (id === 'wubook' && !configurazione.disponibilitaWuBook) s = { stato: 'spento' };
       if (id === 'email' && !configurazione.emailRichiamata) s = { stato: 'spento' };
-      const testoStato = s.stato === 'spento' ? 'Disattivato' : descrizioni[s.stato];
+      // Accesso SMTP rifiutato: resta in evidenza finché la verifica non torna a riuscire.
+      if (id === 'email' && configurazione.emailSospesa) s = { stato: 'problema', testo: 'Accesso negato: richiamata sospesa' };
+      const testoStato = s.stato === 'spento' ? 'Disattivato' : s.testo || descrizioni[s.stato];
       return el('li', {}, [
         el('span', { class: `punto ${s.stato === 'ok' ? 'ok' : s.stato === 'problema' ? 'problema' : ''}`, 'aria-hidden': 'true' }),
         el('div', {}, [el('div', { class: 'nome', text: `${nome} · ${testoStato}` }), el('div', { class: 'descrizione', text: ruolo })]),
       ]);
     }));
-    const problemi = Object.values(salute).filter((s) => s.stato === 'problema').length;
+    const problemi = Object.entries(salute).filter(([id, s]) => s.stato === 'problema' || (id === 'email' && configurazione.emailSospesa)).length;
     const generale = document.getElementById('stato-generale');
     generale.replaceChildren(
       el('span', { class: `punto ${problemi ? 'problema' : 'ok'}`, 'aria-hidden': 'true' }),
@@ -259,8 +261,8 @@
           o.preventivi.valoreEuro ? `valore indicativo ${fmtEuro.format(o.preventivi.valoreEuro)}` : 'prezzi reali dal sito',
         Boolean(vp.nonRiuscite), 'euro'),
       tile('Richiamate da fare', String(rc.richieste),
-        rc.emailNonInviate ? `${rc.emailNonInviate} email NON inviate` : c.emailRichiamata ? 'arrivano per email' : 'richiamata non attiva',
-        Boolean(rc.emailNonInviate), 'richiamata'),
+        rc.emailNonInviate ? `${rc.emailNonInviate} email NON inviate` : c.emailSospesa ? 'email bloccata: richiamata sospesa' : c.emailRichiamata ? 'arrivano per email' : 'richiamata non attiva',
+        Boolean(rc.emailNonInviate || c.emailSospesa), 'richiamata'),
       tile('Tempo di risposta', secondi(o.latenzaMediaMs),
         o.esiti.ripiego ? `${plurale(o.esiti.ripiego, 'errore', 'errori')} nelle 24 ore` : o.latenzaP95Ms != null ? `quasi sempre entro ${secondi(o.latenzaP95Ms)}` : 'media delle 24 ore',
         Boolean(o.esiti.ripiego), 'tempo'),

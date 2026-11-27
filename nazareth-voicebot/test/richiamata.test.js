@@ -14,7 +14,8 @@ delete process.env.CALLBACK_EMAIL_TO;
 const twilio = require('twilio');
 const { createApp } = require('../server');
 const { creaAssistente, estraiRichiamata, SYSTEM_PROMPT, SYSTEM_PROMPT_SENZA_RICHIAMATA } = require('../src/claude');
-const { componiEmail } = require('../src/notifiche/email-richiamata');
+const { componiEmail, creaNotificatoreRichiamata } = require('../src/notifiche/email-richiamata');
+const { creaMetriche } = require('../src/dashboard/metriche');
 const { RICHIESTA_DOPO_SILENZIO } = require('../src/centralino/messaggi');
 const { leggiNumero, numeroProponibile } = require('../src/centralino/numeri');
 
@@ -83,7 +84,7 @@ async function conServer(opzioni, corpo) {
     return { status: res.status, body: await res.text(), ms: Date.now() - inizio, fine: Date.now() };
   };
   try {
-    await corpo(parla);
+    await corpo(parla, app);
   } finally {
     server.close();
   }
@@ -330,5 +331,101 @@ describe('richiamata: funzioni di supporto', () => {
     assert.doesNotMatch(SYSTEM_PROMPT, /otto e trenta/);
     assert.match(SYSTEM_PROMPT, /Fuori dalla richiamata descritta più sotto, non chiedere né annotare nomi/);
     assert.doesNotMatch(SYSTEM_PROMPT, /Non chiedere né annotare nomi, date, numeri di telefono/);
+  });
+});
+
+describe('verifica dell\'accesso SMTP', () => {
+  const erroreAccesso = () => Object.assign(new Error('Invalid login: 535 per alioscia@example.com'), { code: 'EAUTH', responseCode: 535 });
+
+  test('accesso rifiutato: il bot smette di offrire la richiamata e la riprende quando torna a funzionare', async () => {
+    let rifiuta = true;
+    const smtp = smtpFinto();
+    smtp.verifiche = 0;
+    smtp.verify = async () => {
+      smtp.verifiche += 1;
+      if (rifiuta) throw erroreAccesso();
+      return true;
+    };
+    const { assistente, richieste } = claudeFinto(['Prima.', 'Seconda.', 'Terza.', 'Quarta.']);
+    await conServer({ assistente, trasportoEmail: smtp }, async (parla, app) => {
+      const notificatore = app.locals.notificatore;
+      // Prima di qualsiasi verifica la richiamata resta offerta, come prima.
+      await parla('Vorrei prenotare');
+      assert.equal(notificatore.disponibile(), true);
+
+      assert.equal(await notificatore.verifica(), false);
+      assert.equal(await notificatore.verifica(), false);
+      assert.equal(notificatore.disponibile(), false);
+      await parla('Allora come faccio?');
+
+      rifiuta = false;
+      assert.equal(await notificatore.verifica(), true);
+      assert.equal(notificatore.disponibile(), true);
+      await parla('Va bene');
+      await parla('Grazie');
+    });
+    assert.equal(smtp.verifiche, 3);
+    assert.ok(richieste[0].system.startsWith(SYSTEM_PROMPT));
+    assert.ok(richieste[1].system.startsWith(SYSTEM_PROMPT_SENZA_RICHIAMATA));
+    assert.ok(richieste[2].system.startsWith(SYSTEM_PROMPT));
+    // Nei log solo i cambi di stato, con codici tecnici e senza il messaggio del server SMTP.
+    const errori = eventi().filter((e) => e.evento === 'smtp_verifica_errore');
+    assert.equal(errori.length, 1);
+    assert.equal(errori[0].codice, 'EAUTH');
+    assert.equal(errori[0].risposta, 535);
+    assert.equal(errori[0].chiamataId, null);
+    assert.equal(eventi().filter((e) => e.evento === 'smtp_verifica_ok').length, 1);
+    assert.doesNotMatch(log.join('\n'), /Invalid login|alioscia@example\.com/);
+  });
+
+  test('invio rifiutato per credenziali: le chiamate successive non offrono più la richiamata', async () => {
+    const { assistente, richieste } = claudeFinto([
+      `${CONFERMA} ${BLOCCO({ nome: 'Mario Rossi', numero: NUMERO_CLIENTE, motivo: 'Preventivo' })}`,
+      'Buongiorno, mi dica.',
+    ]);
+    await conServer({ assistente, trasportoEmail: smtpFinto({ errore: erroreAccesso() }) }, async (parla, app) => {
+      await parla('Sì, è corretto');
+      await attendi(100);
+      assert.equal(app.locals.notificatore.disponibile(), false);
+      await parla('Buongiorno', { callSid: 'CA_successiva' });
+    });
+    assert.ok(richieste[0].system.startsWith(SYSTEM_PROMPT));
+    assert.ok(richieste[1].system.startsWith(SYSTEM_PROMPT_SENZA_RICHIAMATA));
+    assert.ok(eventi().some((e) => e.evento === 'richiamata_email_errore' && e.codice === 'EAUTH'));
+    assert.ok(eventi().some((e) => e.evento === 'smtp_verifica_errore' && e.codice === 'EAUTH'));
+  });
+
+  test('errore di rete durante l\'invio: la richiamata non viene sospesa', async () => {
+    const errore = Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' });
+    const notificatore = creaNotificatoreRichiamata({ transport: smtpFinto({ errore }), log: () => {} });
+    await notificatore.invia({
+      chiamataId: 'CA_rete',
+      richiamata: { nome: 'Anna', numero: NUMERO_CLIENTE, motivo: 'Info' },
+      numeroChiamante: null,
+      messages: [],
+      ricevutaIl: Date.now(),
+    });
+    assert.equal(notificatore.disponibile(), true);
+  });
+
+  test('senza SMTP configurato non parte nessuna verifica', async () => {
+    const notificatore = creaNotificatoreRichiamata({ log: () => {} });
+    assert.equal(await notificatore.verifica(), false);
+    assert.equal(notificatore.disponibile(), false);
+    const ferma = notificatore.avviaVerifica();
+    assert.equal(typeof ferma, 'function');
+    ferma();
+  });
+
+  test('dashboard: l\'accesso rifiutato compare tra gli errori e nello stato dell\'email', () => {
+    const metriche = creaMetriche();
+    metriche.registra(null, 'smtp_verifica_errore', { codice: 'EAUTH', risposta: 535 });
+    let stato = metriche.riepilogo();
+    assert.equal(stato.salute.email.stato, 'problema');
+    assert.equal(stato.errori[0].tipo, 'EAUTH');
+    assert.match(stato.errori[0].messaggio, /richiamata sospesa/);
+    metriche.registra(null, 'smtp_verifica_ok');
+    stato = metriche.riepilogo();
+    assert.equal(stato.salute.email.stato, 'ok');
   });
 });

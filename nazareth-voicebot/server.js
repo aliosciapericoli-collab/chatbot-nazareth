@@ -142,7 +142,8 @@ function createApp({
     // Domande massime per chiamata, per limitare durata e costi.
     maxTurni,
     notificaRichiamata,
-    richiamataDisponibile: notificatore.configurato,
+    // Si rilegge a ogni domanda: se l'accesso SMTP fallisce il bot smette di offrire la richiamata.
+    richiamataDisponibile: notificatore.disponibile,
     // Numeri della struttura: se il trasferimento li presenta come chiamante, non vanno proposti.
     numeriEsclusi: [process.env.RECEPTION_PHONE_NUMBER || '+3907611564612', process.env.TWILIO_PHONE_NUMBER].filter(Boolean),
     log,
@@ -200,6 +201,7 @@ function createApp({
       voce: process.env.TTS_VOICE || 'Polly.Bianca-Neural',
       disponibilitaWuBook: disponibilitaAttiva,
       emailRichiamata: notificatore.configurato ? process.env.CALLBACK_EMAIL_TO || 'info@nazarethresidence.com' : null,
+      emailSospesa: notificatore.configurato && !notificatore.disponibile(),
       versione: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
       archivioGiorni: archivio.attivo ? archivio.giorni : null,
       lineaDemo: numeroDemo,
@@ -210,6 +212,7 @@ function createApp({
   app.use(provider.router(instradamento));
 
   app.locals.reportGiornaliero = reportGiornaliero;
+  app.locals.notificatore = notificatore;
   return app;
 }
 
@@ -248,6 +251,11 @@ if (require.main === module) {
     console.warn('DATABASE_URL non impostato: le conversazioni non vengono archiviate.');
   }
   const app = createApp({ provider, registroTwilio, archivio });
+  // Accesso SMTP verificato all'avvio e poi ogni SMTP_VERIFICA_MINUTI (default 15): se Gmail
+  // rifiuta le credenziali il bot smette di promettere richiamate che nessuno riceverebbe.
+  app.locals.notificatore.avviaVerifica({
+    ogniMs: (Number.parseInt(process.env.SMTP_VERIFICA_MINUTI, 10) || 15) * 60 * 1000,
+  });
   const report = app.locals.reportGiornaliero;
   if (report?.attivo) {
     console.log(`Report giornaliero attivo: ogni mattina dalle ${report.ora} a ${report.destinatario}.`);
